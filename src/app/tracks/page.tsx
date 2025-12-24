@@ -1,17 +1,17 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { Dashboard } from "@/components/dashboard/dashboard"
+import { TracksPage } from "@/components/tracks/tracks-page"
 
-export default function Home() {
+export default function Tracks() {
   return (
     <div className="flex min-h-screen">
       <Sidebar streak={5} xp={1250} />
       <main className="ml-64 flex-1">
         <Header 
-          title="Welcome back! 👋" 
-          subtitle="Continue your DevOps journey" 
+          title="Learning Paths 📚" 
+          subtitle="Choose your journey from beginner to expert" 
         />
-        <Dashboard />
+        <TracksPage />
       </main>
     </div>
   )

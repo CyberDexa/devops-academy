@@ -1,17 +1,17 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { Dashboard } from "@/components/dashboard/dashboard"
+import { AchievementsPage } from "@/components/achievements/achievements-page"
 
-export default function Home() {
+export default function Achievements() {
   return (
     <div className="flex min-h-screen">
       <Sidebar streak={5} xp={1250} />
       <main className="ml-64 flex-1">
         <Header 
-          title="Welcome back! 👋" 
-          subtitle="Continue your DevOps journey" 
+          title="Achievements 🏆" 
+          subtitle="Track your milestones and earn badges" 
         />
-        <Dashboard />
+        <AchievementsPage />
       </main>
     </div>
   )

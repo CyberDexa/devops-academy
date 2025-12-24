@@ -1,17 +1,17 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { Dashboard } from "@/components/dashboard/dashboard"
+import { SettingsPage } from "@/components/settings/settings-page"
 
-export default function Home() {
+export default function Settings() {
   return (
     <div className="flex min-h-screen">
       <Sidebar streak={5} xp={1250} />
       <main className="ml-64 flex-1">
         <Header 
-          title="Welcome back! 👋" 
-          subtitle="Continue your DevOps journey" 
+          title="Settings ⚙️" 
+          subtitle="Customize your learning experience" 
         />
-        <Dashboard />
+        <SettingsPage />
       </main>
     </div>
   )

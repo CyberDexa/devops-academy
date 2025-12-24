@@ -1,0 +1,127 @@
+// DevOps Academy Database Schema
+// SQLite database for tracking learning progress
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Learning Tracks (Phases: Foundation, Core DevOps, Advanced, etc.)
+model Track {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String   @default("")
+  slug        String   @unique
+  description String
+  icon        String   @default("terminal")
+  color       String   @default("emerald")
+  level       String   @default("beginner") // beginner, intermediate, advanced, expert
+  duration    String   @default("10-15 hours")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  modules     Module[]
+}
+
+// Modules within a track
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String
+  description String
+  duration    String   @default("2-4 hours")
+  order       Int      @default(0)
+  trackId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+  
+  @@unique([trackId, slug])
+}
+
+// Individual lessons
+model Lesson {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String
+  description   String
+  content       String   // MDX content
+  type          String   @default("tutorial") // tutorial, lab, quiz, project
+  difficulty    String   @default("beginner") // beginner, intermediate, advanced
+  estimatedTime Int      @default(30) // minutes
+  xpReward      Int      @default(100) // XP earned on completion
+  order         Int      @default(0)
+  moduleId      String
+  
+  // Lab configuration
+  hasTerminal   Boolean  @default(false)
+  dockerImage   String?  // Docker image for lab environment
+  labConfig     String?  // JSON config for lab setup
+  codeExamples  String?  // JSON array of code examples
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  module        Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress      LessonProgress[]
+  
+  @@unique([moduleId, slug])
+}
+
+// User progress tracking
+model LessonProgress {
+  id          String   @id @default(cuid())
+  lessonId    String
+  status      String   @default("not_started") // not_started, in_progress, completed
+  completedAt DateTime?
+  timeSpent   Int      @default(0) // seconds
+  notes       String?  // User notes
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  @@unique([lessonId])
+}
+
+// Daily streaks and activity
+model DailyActivity {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  lessonsCompleted Int @default(0)
+  timeSpent   Int      @default(0) // seconds
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Achievements/Badges
+model Achievement {
+  id          String   @id @default(cuid())
+  type        String   // streak, completion, milestone
+  title       String
+  description String
+  icon        String
+  unlockedAt  DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+}
+
+// Skills tracking
+model Skill {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String   // devops, mlops, cloud, tools
+  level       Int      @default(0) // 0-100
+  xp          Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

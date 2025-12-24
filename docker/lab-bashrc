@@ -1,0 +1,89 @@
+# ~/.bashrc for DevOps Academy Lab
+
+# Colors and prompt
+export PS1='\[\033[1;32m\]\u@devops-lab\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]$ '
+
+# Aliases for common DevOps commands
+alias ll='ls -la'
+alias la='ls -A'
+alias l='ls -CF'
+alias cls='clear'
+alias k='kubectl'
+alias tf='terraform'
+alias d='docker'
+alias dc='docker compose'
+alias g='git'
+
+# Git aliases
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git log --oneline -10'
+alias gd='git diff'
+
+# Kubernetes aliases
+alias kgp='kubectl get pods'
+alias kgs='kubectl get services'
+alias kgd='kubectl get deployments'
+alias kgn='kubectl get namespaces'
+alias kaf='kubectl apply -f'
+alias kdel='kubectl delete'
+alias klogs='kubectl logs'
+alias kexec='kubectl exec -it'
+
+# Docker aliases
+alias dps='docker ps'
+alias dpsa='docker ps -a'
+alias di='docker images'
+alias drm='docker rm'
+alias drmi='docker rmi'
+alias dprune='docker system prune -af'
+
+# AWS aliases
+alias awswho='aws sts get-caller-identity'
+
+# Terraform aliases
+alias tfi='terraform init'
+alias tfp='terraform plan'
+alias tfa='terraform apply'
+alias tfd='terraform destroy'
+alias tfv='terraform validate'
+
+# Welcome message
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  🚀 DevOps Academy Lab Environment                          ║"
+echo "║                                                              ║"
+echo "║  Tools: Docker, Kubernetes, Terraform, AWS CLI, Azure CLI   ║"
+echo "║  Python: 3.x with MLflow, DVC, scikit-learn                 ║"
+echo "║                                                              ║"
+echo "║  Type 'help-lab' for available commands                     ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Lab help function
+help-lab() {
+    echo ""
+    echo "DevOps Academy Lab Commands:"
+    echo ""
+    echo "  Docker:      d, dps, dpsa, di, drm, drmi, dprune"
+    echo "  Kubernetes:  k, kgp, kgs, kgd, kaf, klogs, kexec"
+    echo "  Terraform:   tf, tfi, tfp, tfa, tfd, tfv"
+    echo "  Git:         g, gs, ga, gc, gp, gl, gd"
+    echo "  AWS:         aws, awswho"
+    echo "  Azure:       az"
+    echo "  GCP:         gcloud"
+    echo ""
+    echo "  Directories:"
+    echo "    ~/projects  - Your project files"
+    echo "    ~/labs      - Lab exercise files"
+    echo "    ~/scripts   - Utility scripts"
+    echo ""
+}
+
+# Enable command history
+export HISTSIZE=10000
+export HISTFILESIZE=20000
+export HISTCONTROL=ignoredups:erasedups
+shopt -s histappend

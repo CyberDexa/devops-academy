@@ -1,0 +1,133 @@
+# DevOps Academy Lab Environment
+# This container includes all the tools needed for DevOps/MLOps labs
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install essential packages
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    vim \
+    nano \
+    jq \
+    tree \
+    htop \
+    net-tools \
+    iputils-ping \
+    dnsutils \
+    openssh-client \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
+    sudo \
+    zsh \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI (for Docker-in-Docker labs)
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install kubectl
+RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+    && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list \
+    && apt-get update \
+    && apt-get install -y kubectl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Helm
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Install Terraform
+RUN wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update \
+    && apt-get install -y terraform \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf aws awscliv2.zip
+
+# Install Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Install Google Cloud SDK
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
+    && apt-get update \
+    && apt-get install -y google-cloud-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python ML/MLOps packages
+RUN pip3 install --no-cache-dir \
+    mlflow \
+    dvc \
+    boto3 \
+    pandas \
+    numpy \
+    scikit-learn \
+    jupyter \
+    pytest \
+    black \
+    flake8
+
+# Install Node.js (for various DevOps tools)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install k9s (Kubernetes TUI)
+RUN curl -sS https://webinstall.dev/k9s | bash
+
+# Install minikube (for local Kubernetes labs)
+RUN curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
+    && install minikube-linux-amd64 /usr/local/bin/minikube \
+    && rm minikube-linux-amd64
+
+# Install kind (Kubernetes in Docker)
+RUN curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 \
+    && chmod +x ./kind \
+    && mv ./kind /usr/local/bin/kind
+
+# Create learner user
+RUN useradd -m -s /bin/zsh -G sudo learner \
+    && echo "learner:learner" | chpasswd \
+    && echo "learner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Switch to learner user
+USER learner
+WORKDIR /home/learner
+
+# Install Oh My Zsh for better terminal experience
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+
+# Create lab directories
+RUN mkdir -p ~/projects ~/labs ~/scripts
+
+# Copy lab configuration (these files should be in the same directory as Dockerfile)
+COPY --chown=learner:learner lab-bashrc /home/learner/.bashrc
+COPY --chown=learner:learner lab-zshrc /home/learner/.zshrc
+
+# Set environment variables
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+ENV DEVOPS_ACADEMY_LAB=true
+
+# Default command
+CMD ["/bin/zsh"]

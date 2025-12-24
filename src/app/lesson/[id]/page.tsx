@@ -1,0 +1,386 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { 
+  ArrowLeft,
+  ArrowRight,
+  BookOpen, 
+  Clock, 
+  CheckCircle2,
+  Terminal as TerminalIcon,
+  Play,
+  Lightbulb,
+  FileText,
+  Code2,
+  ChevronRight
+} from "lucide-react"
+import { Sidebar } from "@/components/layout/sidebar"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { RealTerminal } from "@/components/terminal/real-terminal"
+import Link from "next/link"
+
+interface LessonNav {
+  id: string
+  slug: string
+  title: string
+  order: number
+  type: string
+  duration: string
+}
+
+interface Track {
+  id: string
+  slug: string
+  title: string
+}
+
+interface Module {
+  id: string
+  slug: string
+  title: string
+  track: Track
+  lessons: LessonNav[]
+}
+
+interface Lesson {
+  id: string
+  title: string
+  content: string
+  type: string
+  duration: string
+  xpReward: number
+  order: number
+  codeExamples: string | null
+  module: Module
+  prevLesson: LessonNav | null
+  nextLesson: LessonNav | null
+  totalLessonsInModule: number
+  currentLessonIndex: number
+}
+
+// Type icons
+const typeIcons: Record<string, React.ElementType> = {
+  video: Play,
+  reading: FileText,
+  lab: TerminalIcon,
+  project: Code2,
+  quiz: BookOpen,
+}
+
+const typeColors: Record<string, string> = {
+  video: "text-blue-400",
+  reading: "text-green-400",
+  lab: "text-orange-400",
+  project: "text-purple-400",
+  quiz: "text-cyan-400",
+}
+
+export default function LessonPage() {
+  const params = useParams()
+  const lessonId = params.id as string
+  
+  const [lesson, setLesson] = useState<Lesson | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [completed, setCompleted] = useState(false)
+
+  useEffect(() => {
+    async function fetchLesson() {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/lessons/${lessonId}`)
+        if (!response.ok) throw new Error('Failed to fetch lesson')
+        const data = await response.json()
+        setLesson(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (lessonId) {
+      fetchLesson()
+    }
+  }, [lessonId])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar streak={5} xp={1250} />
+        <main className="ml-64 flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto" />
+            <p className="text-slate-400">Loading lesson...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error || !lesson) {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar streak={5} xp={1250} />
+        <main className="ml-64 flex-1 flex items-center justify-center">
+          <Card className="border-red-500/50 bg-red-500/10 max-w-md">
+            <CardContent className="p-6 text-center">
+              <p className="text-red-400">Failed to load lesson: {error}</p>
+              <Link href="/tracks">
+                <Button variant="outline" className="mt-4">
+                  Back to Tracks
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  const TypeIcon = typeIcons[lesson.type] || BookOpen
+  const typeColor = typeColors[lesson.type] || "text-slate-400"
+  const progress = (lesson.currentLessonIndex / lesson.totalLessonsInModule) * 100
+
+  const markComplete = () => {
+    setCompleted(true)
+    // TODO: Save progress to database
+  }
+
+  // Parse content for code blocks
+  const renderContent = (content: string) => {
+    return content
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-slate-800 rounded-lg p-4 overflow-x-auto my-4"><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
+      .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-white mt-6 mb-3">$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-white mt-4 mb-2">$1</h3>')
+      .replace(/^- (.+)$/gm, '<li class="ml-4 text-slate-300">• $1</li>')
+      .replace(/\n\n/g, '</p><p class="mt-4">')
+      .replace(/\n/g, '<br>')
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar streak={5} xp={1250} />
+      
+      <main className="ml-64 flex-1 flex flex-col">
+        {/* Lesson Header */}
+        <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-4">
+              <Link href={`/tracks/${lesson.module.track.slug}/${lesson.module.slug}`}>
+                <Button variant="ghost" size="icon">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-2 text-sm text-slate-400 mb-1">
+                  <Link href="/tracks" className="hover:text-white transition-colors">
+                    Tracks
+                  </Link>
+                  <ChevronRight className="h-3 w-3" />
+                  <Link href={`/tracks/${lesson.module.track.slug}`} className="hover:text-white transition-colors">
+                    {lesson.module.track.title}
+                  </Link>
+                  <ChevronRight className="h-3 w-3" />
+                  <Link href={`/tracks/${lesson.module.track.slug}/${lesson.module.slug}`} className="hover:text-white transition-colors">
+                    {lesson.module.title}
+                  </Link>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className={`gap-1 ${typeColor}`}>
+                    <TypeIcon className="h-3 w-3" />
+                    {lesson.type}
+                  </Badge>
+                  <Badge variant="outline">
+                    +{lesson.xpReward} XP
+                  </Badge>
+                </div>
+                <h1 className="text-xl font-bold text-white mt-1">{lesson.title}</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Clock className="h-4 w-4" />
+                {lesson.duration}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400">
+                  {lesson.currentLessonIndex} / {lesson.totalLessonsInModule}
+                </span>
+                <Progress value={progress} className="w-32" />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <div className="flex-1 flex">
+          {/* Lesson Content */}
+          <div className={`flex-1 overflow-y-auto ${showTerminal ? "w-1/2" : "w-full"}`}>
+            <div className="max-w-3xl mx-auto p-6">
+              {/* Lesson Info Card */}
+              <Card className="mb-6 border-emerald-500/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800 ${typeColor}`}>
+                        <TypeIcon className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white">{lesson.type.charAt(0).toUpperCase() + lesson.type.slice(1)} Lesson</h3>
+                        <p className="text-sm text-slate-400">{lesson.duration} • {lesson.xpReward} XP</p>
+                      </div>
+                    </div>
+                    {(lesson.type === 'lab' || lesson.type === 'project') && (
+                      <Button 
+                        onClick={() => setShowTerminal(!showTerminal)}
+                        className="gap-2"
+                        variant={showTerminal ? "secondary" : "default"}
+                      >
+                        <TerminalIcon className="h-4 w-4" />
+                        {showTerminal ? "Hide Terminal" : "Open Terminal"}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Main Content */}
+              <article className="prose prose-invert prose-emerald max-w-none">
+                <div 
+                  className="text-slate-300 leading-relaxed"
+                  dangerouslySetInnerHTML={{ 
+                    __html: renderContent(lesson.content || `
+## ${lesson.title}
+
+This lesson is part of the **${lesson.module.title}** module in the ${lesson.module.track.title} track.
+
+### Learning Objectives
+
+- Understand the core concepts of ${lesson.title.toLowerCase()}
+- Apply practical skills through hands-on exercises
+- Build foundational knowledge for advanced topics
+
+### Overview
+
+This ${lesson.type} lesson will guide you through the essential concepts and provide hands-on practice opportunities.
+
+${lesson.type === 'lab' || lesson.type === 'project' ? `
+### Hands-On Practice
+
+Click the "Open Terminal" button above to start practicing with real commands and tools.
+` : ''}
+
+### Next Steps
+
+After completing this lesson, you'll be ready to move on to more advanced topics in the curriculum.
+                    `)
+                  }}
+                />
+              </article>
+
+              {/* Code Examples */}
+              {lesson.codeExamples && (
+                <Card className="mt-6 border-slate-700">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
+                      <Code2 className="h-4 w-4 text-purple-400" />
+                      Code Examples
+                    </h4>
+                    <pre className="bg-slate-800 rounded-lg p-4 overflow-x-auto text-sm">
+                      <code className="text-slate-300">{lesson.codeExamples}</code>
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Completion Card */}
+              <Card className={`mt-6 ${completed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700'}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-white">
+                        {completed ? 'Lesson Completed!' : 'Mark as Complete'}
+                      </h4>
+                      <p className="text-sm text-slate-400">
+                        {completed 
+                          ? `You earned ${lesson.xpReward} XP!` 
+                          : 'Complete this lesson to earn XP and track your progress'}
+                      </p>
+                    </div>
+                    {!completed && (
+                      <Button onClick={markComplete} className="gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Complete (+{lesson.xpReward} XP)
+                      </Button>
+                    )}
+                    {completed && (
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800">
+                <div>
+                  {lesson.prevLesson ? (
+                    <Link href={`/lesson/${lesson.prevLesson.slug}`}>
+                      <Button variant="outline" className="gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        {lesson.prevLesson.title}
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href={`/tracks/${lesson.module.track.slug}/${lesson.module.slug}`}>
+                      <Button variant="outline" className="gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Module
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+                <div>
+                  {lesson.nextLesson ? (
+                    <Link href={`/lesson/${lesson.nextLesson.slug}`}>
+                      <Button className="gap-2">
+                        {lesson.nextLesson.title}
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href={`/tracks/${lesson.module.track.slug}`}>
+                      <Button className="gap-2">
+                        Complete Module
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Terminal Panel */}
+          {showTerminal && (
+            <div className="w-1/2 border-l border-slate-800">
+              <RealTerminal 
+                title="Lab Environment"
+                lessonId={lessonId}
+                onClose={() => setShowTerminal(false)}
+                className="h-full rounded-none"
+              />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
