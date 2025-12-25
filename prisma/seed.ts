@@ -40,12 +40,18 @@ async function main() {
   console.log(`   - Total XP: ${curriculumStats.totalXP.toLocaleString()}\n`);
 
   console.log('🗑️  Clearing existing data...');
+  await prisma.userAchievement.deleteMany();
+  await prisma.userSkill.deleteMany();
+  await prisma.labSession.deleteMany();
+  await prisma.labExerciseProgress.deleteMany();
+  await prisma.dailyActivity.deleteMany();
   await prisma.lessonProgress.deleteMany();
   await prisma.lesson.deleteMany();
   await prisma.module.deleteMany();
   await prisma.track.deleteMany();
   await prisma.skill.deleteMany();
   await prisma.achievement.deleteMany();
+  await prisma.user.deleteMany();
 
   console.log('📚 Creating phases and modules...\n');
   
@@ -191,31 +197,32 @@ async function main() {
 
   console.log('💪 Creating skills...');
   const skills = [
-    { name: 'Linux', category: 'devops', level: 0, xp: 0 },
-    { name: 'Shell Scripting', category: 'devops', level: 0, xp: 0 },
-    { name: 'Git', category: 'devops', level: 0, xp: 0 },
-    { name: 'Docker', category: 'devops', level: 0, xp: 0 },
-    { name: 'Kubernetes', category: 'devops', level: 0, xp: 0 },
-    { name: 'CI/CD', category: 'devops', level: 0, xp: 0 },
-    { name: 'Terraform', category: 'devops', level: 0, xp: 0 },
-    { name: 'Ansible', category: 'devops', level: 0, xp: 0 },
-    { name: 'Monitoring', category: 'devops', level: 0, xp: 0 },
-    { name: 'Security', category: 'devops', level: 0, xp: 0 },
-    { name: 'AWS', category: 'cloud', level: 0, xp: 0 },
-    { name: 'GCP', category: 'cloud', level: 0, xp: 0 },
-    { name: 'Azure', category: 'cloud', level: 0, xp: 0 },
-    { name: 'Python', category: 'mlops', level: 0, xp: 0 },
-    { name: 'ML Fundamentals', category: 'mlops', level: 0, xp: 0 },
-    { name: 'MLflow', category: 'mlops', level: 0, xp: 0 },
-    { name: 'Feature Engineering', category: 'mlops', level: 0, xp: 0 },
-    { name: 'Model Serving', category: 'mlops', level: 0, xp: 0 },
-    { name: 'ML Monitoring', category: 'mlops', level: 0, xp: 0 },
-    { name: 'GitHub Actions', category: 'tools', level: 0, xp: 0 },
-    { name: 'GitLab CI', category: 'tools', level: 0, xp: 0 },
-    { name: 'Jenkins', category: 'tools', level: 0, xp: 0 },
-    { name: 'ArgoCD', category: 'tools', level: 0, xp: 0 },
-    { name: 'Prometheus', category: 'tools', level: 0, xp: 0 },
-    { name: 'Grafana', category: 'tools', level: 0, xp: 0 },
+    { name: 'Linux & CLI', category: 'devops', icon: '🐧', color: 'emerald' },
+    { name: 'Shell Scripting', category: 'devops', icon: '📜', color: 'emerald' },
+    { name: 'Git & Version Control', category: 'devops', icon: '📚', color: 'orange' },
+    { name: 'Docker', category: 'devops', icon: '🐳', color: 'blue' },
+    { name: 'Kubernetes', category: 'devops', icon: '☸️', color: 'blue' },
+    { name: 'CI/CD', category: 'devops', icon: '🚀', color: 'purple' },
+    { name: 'Terraform', category: 'devops', icon: '🏗️', color: 'purple' },
+    { name: 'Ansible', category: 'devops', icon: '🔧', color: 'red' },
+    { name: 'Monitoring & Observability', category: 'devops', icon: '📊', color: 'yellow' },
+    { name: 'Security', category: 'devops', icon: '🔒', color: 'red' },
+    { name: 'Cloud (AWS)', category: 'cloud', icon: '☁️', color: 'orange' },
+    { name: 'Cloud (GCP)', category: 'cloud', icon: '☁️', color: 'blue' },
+    { name: 'Cloud (Azure)', category: 'cloud', icon: '☁️', color: 'cyan' },
+    { name: 'Python', category: 'mlops', icon: '🐍', color: 'yellow' },
+    { name: 'ML Fundamentals', category: 'mlops', icon: '🧠', color: 'pink' },
+    { name: 'MLflow', category: 'mlops', icon: '📈', color: 'blue' },
+    { name: 'Feature Engineering', category: 'mlops', icon: '🔬', color: 'purple' },
+    { name: 'Model Serving', category: 'mlops', icon: '🤖', color: 'emerald' },
+    { name: 'ML Monitoring', category: 'mlops', icon: '👁️', color: 'yellow' },
+    { name: 'Infrastructure as Code', category: 'devops', icon: '📝', color: 'purple' },
+    { name: 'GitHub Actions', category: 'tools', icon: '⚡', color: 'gray' },
+    { name: 'GitLab CI', category: 'tools', icon: '🦊', color: 'orange' },
+    { name: 'Jenkins', category: 'tools', icon: '🎩', color: 'red' },
+    { name: 'ArgoCD', category: 'tools', icon: '🔄', color: 'orange' },
+    { name: 'Prometheus', category: 'tools', icon: '🔥', color: 'orange' },
+    { name: 'Grafana', category: 'tools', icon: '📊', color: 'orange' },
   ];
 
   for (const skill of skills) {
@@ -225,41 +232,55 @@ async function main() {
 
   console.log('\n🏆 Creating achievements...');
   const achievements = [
-    { type: 'streak', title: 'First Day', description: 'Complete your first lesson', icon: '🌟' },
-    { type: 'streak', title: '7-Day Streak', description: 'Learn for 7 consecutive days', icon: '🔥' },
-    { type: 'streak', title: '30-Day Streak', description: 'Learn for 30 consecutive days', icon: '💎' },
-    { type: 'streak', title: '100-Day Streak', description: 'Learn for 100 consecutive days', icon: '🏆' },
-    { type: 'completion', title: 'Docker Master', description: 'Complete all Docker lessons', icon: '🐳' },
-    { type: 'completion', title: 'Kubernetes Captain', description: 'Complete all Kubernetes lessons', icon: '☸️' },
-    { type: 'completion', title: 'Terraform Titan', description: 'Complete all Terraform lessons', icon: '🏗️' },
-    { type: 'completion', title: 'CI/CD Champion', description: 'Complete all CI/CD lessons', icon: '🚀' },
-    { type: 'completion', title: 'Cloud Architect', description: 'Complete all cloud lessons', icon: '☁️' },
-    { type: 'completion', title: 'MLOps Engineer', description: 'Complete all MLOps lessons', icon: '🤖' },
-    { type: 'milestone', title: 'Phase 1 Complete', description: 'Complete Phase 1: Foundation', icon: '🏗️' },
-    { type: 'milestone', title: 'Phase 2 Complete', description: 'Complete Phase 2: Core DevOps', icon: '🔧' },
-    { type: 'milestone', title: 'Phase 3 Complete', description: 'Complete Phase 3: Advanced DevOps', icon: '🚀' },
-    { type: 'milestone', title: 'Phase 4 Complete', description: 'Complete Phase 4: MLOps Introduction', icon: '🧠' },
-    { type: 'milestone', title: 'Phase 5 Complete', description: 'Complete Phase 5: Production MLOps', icon: '🤖' },
-    { type: 'milestone', title: 'Phase 6 Complete', description: 'Complete Phase 6: Expert Capstone', icon: '🎓' },
-    { type: 'milestone', title: 'DevOps Hero', description: 'Complete the entire curriculum', icon: '🦸' },
-    { type: 'milestone', title: 'First 1000 XP', description: 'Earn 1,000 XP', icon: '⭐' },
-    { type: 'milestone', title: '5000 XP', description: 'Earn 5,000 XP', icon: '🌟' },
-    { type: 'milestone', title: '10000 XP', description: 'Earn 10,000 XP', icon: '💫' },
-    { type: 'milestone', title: 'XP Master', description: 'Earn 20,000+ XP', icon: '🏅' },
-    { type: 'completion', title: 'First Project', description: 'Complete your first project', icon: '📦' },
-    { type: 'completion', title: 'Project Pro', description: 'Complete 5 projects', icon: '🎯' },
-    { type: 'completion', title: 'Project Master', description: 'Complete all 12 projects', icon: '👑' },
+    { type: 'streak', title: 'First Day', description: 'Complete your first lesson', icon: '🌟', xpReward: 50, requirement: '{"days":1}' },
+    { type: 'streak', title: '3-Day Streak', description: 'Learn for 3 consecutive days', icon: '🔥', xpReward: 100, requirement: '{"days":3}' },
+    { type: 'streak', title: '7-Day Streak', description: 'Learn for 7 consecutive days', icon: '🔥', xpReward: 200, requirement: '{"days":7}' },
+    { type: 'streak', title: '14-Day Streak', description: 'Learn for 14 consecutive days', icon: '💪', xpReward: 300, requirement: '{"days":14}' },
+    { type: 'streak', title: '30-Day Streak', description: 'Learn for 30 consecutive days', icon: '💎', xpReward: 500, requirement: '{"days":30}' },
+    { type: 'streak', title: '60-Day Streak', description: 'Learn for 60 consecutive days', icon: '🏆', xpReward: 1000, requirement: '{"days":60}' },
+    { type: 'streak', title: '100-Day Streak', description: 'Learn for 100 consecutive days', icon: '👑', xpReward: 2000, requirement: '{"days":100}' },
+    { type: 'completion', title: 'Docker Master', description: 'Complete all Docker lessons', icon: '🐳', xpReward: 500, requirement: '{"skill":"Docker"}' },
+    { type: 'completion', title: 'Kubernetes Captain', description: 'Complete all Kubernetes lessons', icon: '☸️', xpReward: 500, requirement: '{"skill":"Kubernetes"}' },
+    { type: 'completion', title: 'Terraform Titan', description: 'Complete all Terraform lessons', icon: '🏗️', xpReward: 500, requirement: '{"skill":"Terraform"}' },
+    { type: 'completion', title: 'CI/CD Champion', description: 'Complete all CI/CD lessons', icon: '🚀', xpReward: 500, requirement: '{"skill":"CI/CD"}' },
+    { type: 'completion', title: 'Cloud Architect', description: 'Complete all cloud lessons', icon: '☁️', xpReward: 500, requirement: '{"category":"cloud"}' },
+    { type: 'completion', title: 'MLOps Engineer', description: 'Complete all MLOps lessons', icon: '🤖', xpReward: 500, requirement: '{"category":"mlops"}' },
+    { type: 'milestone', title: 'Phase 1 Complete', description: 'Complete Phase 1: Foundation', icon: '🏗️', xpReward: 300, requirement: '{"phase":1}' },
+    { type: 'milestone', title: 'Phase 2 Complete', description: 'Complete Phase 2: Core DevOps', icon: '🔧', xpReward: 500, requirement: '{"phase":2}' },
+    { type: 'milestone', title: 'Phase 3 Complete', description: 'Complete Phase 3: Advanced DevOps', icon: '🚀', xpReward: 700, requirement: '{"phase":3}' },
+    { type: 'milestone', title: 'Phase 4 Complete', description: 'Complete Phase 4: MLOps Introduction', icon: '🧠', xpReward: 800, requirement: '{"phase":4}' },
+    { type: 'milestone', title: 'Phase 5 Complete', description: 'Complete Phase 5: Production MLOps', icon: '🤖', xpReward: 1000, requirement: '{"phase":5}' },
+    { type: 'milestone', title: 'Phase 6 Complete', description: 'Complete Phase 6: Expert Capstone', icon: '🎓', xpReward: 1500, requirement: '{"phase":6}' },
+    { type: 'milestone', title: 'DevOps Hero', description: 'Complete the entire curriculum', icon: '🦸', xpReward: 5000, requirement: '{"complete":true}' },
+    { type: 'milestone', title: 'First 1000 XP', description: 'Earn 1,000 XP', icon: '⭐', xpReward: 100, requirement: '{"xp":1000}' },
+    { type: 'milestone', title: '5000 XP', description: 'Earn 5,000 XP', icon: '🌟', xpReward: 200, requirement: '{"xp":5000}' },
+    { type: 'milestone', title: '10000 XP', description: 'Earn 10,000 XP', icon: '💫', xpReward: 500, requirement: '{"xp":10000}' },
+    { type: 'milestone', title: 'XP Master', description: 'Earn 20,000+ XP', icon: '🏅', xpReward: 1000, requirement: '{"xp":20000}' },
+    { type: 'completion', title: 'First Project', description: 'Complete your first project', icon: '📦', xpReward: 200, requirement: '{"projects":1}' },
+    { type: 'completion', title: 'Project Pro', description: 'Complete 5 projects', icon: '🎯', xpReward: 500, requirement: '{"projects":5}' },
+    { type: 'completion', title: 'Project Master', description: 'Complete all 12 projects', icon: '👑', xpReward: 2000, requirement: '{"projects":12}' },
+    { type: 'milestone', title: 'Level 5', description: 'Reach Level 5', icon: '🎖️', xpReward: 100, requirement: '{"level":5}' },
+    { type: 'milestone', title: 'Level 10', description: 'Reach Level 10', icon: '🏅', xpReward: 200, requirement: '{"level":10}' },
+    { type: 'milestone', title: 'Level 20', description: 'Reach Level 20', icon: '🥇', xpReward: 500, requirement: '{"level":20}' },
   ];
 
   for (const achievement of achievements) {
-    await prisma.achievement.create({ 
-      data: {
-        ...achievement,
-        unlockedAt: new Date(0),
-      }
-    });
+    await prisma.achievement.create({ data: achievement });
   }
   console.log(`   Created ${achievements.length} achievements`);
+
+  console.log('\n👤 Creating default user...');
+  const user = await prisma.user.create({
+    data: {
+      name: 'DevOps Learner',
+      email: 'learner@devops.academy',
+      totalXp: 0,
+      level: 1,
+      streak: 0,
+      longestStreak: 0,
+    }
+  });
+  console.log(`   Created user: ${user.name} (${user.email})`);
 
   const trackCount = await prisma.track.count();
   const moduleCount = await prisma.module.count();

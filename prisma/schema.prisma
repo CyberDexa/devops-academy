@@ -9,6 +9,29 @@ datasource db {
   provider = "sqlite"
 }
 
+// User model for multi-user support
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?  @unique
+  avatar      String?  // URL or initials
+  totalXp     Int      @default(0)
+  level       Int      @default(1)
+  streak      Int      @default(0)
+  longestStreak Int    @default(0)
+  lastActiveAt DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  lessonProgress    LessonProgress[]
+  dailyActivity     DailyActivity[]
+  achievements      UserAchievement[]
+  skills            UserSkill[]
+  labExerciseProgress LabExerciseProgress[]
+  labSessions       LabSession[]
+}
+
 // Learning Tracks (Phases: Foundation, Core DevOps, Advanced, etc.)
 model Track {
   id          String   @id @default(cuid())
@@ -77,58 +100,102 @@ model Lesson {
 // User progress tracking
 model LessonProgress {
   id          String   @id @default(cuid())
+  userId      String
   lessonId    String
   status      String   @default("not_started") // not_started, in_progress, completed
   completedAt DateTime?
   timeSpent   Int      @default(0) // seconds
+  xpEarned    Int      @default(0)
   notes       String?  // User notes
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   
-  @@unique([lessonId])
+  @@unique([userId, lessonId])
 }
 
 // Daily streaks and activity
 model DailyActivity {
   id          String   @id @default(cuid())
-  date        DateTime @unique
+  userId      String
+  date        DateTime
   lessonsCompleted Int @default(0)
   timeSpent   Int      @default(0) // seconds
+  xpEarned    Int      @default(0)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
 }
 
-// Achievements/Badges
+// Achievement definitions (global)
 model Achievement {
   id          String   @id @default(cuid())
-  type        String   // streak, completion, milestone
-  title       String
+  type        String   // streak, completion, milestone, skill
+  title       String   @unique
   description String
   icon        String
-  unlockedAt  DateTime @default(now())
+  xpReward    Int      @default(0)
+  requirement String?  // JSON criteria for unlocking
   
   createdAt   DateTime @default(now())
+  
+  users       UserAchievement[]
 }
 
-// Skills tracking
+// User's unlocked achievements
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+}
+
+// Skill definitions (global)
 model Skill {
   id          String   @id @default(cuid())
   name        String   @unique
   category    String   // devops, mlops, cloud, tools
+  icon        String?
+  color       String?
+  
+  createdAt   DateTime @default(now())
+  
+  users       UserSkill[]
+}
+
+// User's skill progress
+model UserSkill {
+  id          String   @id @default(cuid())
+  userId      String
+  skillId     String
   level       Int      @default(0) // 0-100
   xp          Int      @default(0)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, skillId])
 }
 
 // Lab Exercise Progress
 model LabExerciseProgress {
   id            String    @id @default(cuid())
+  userId        String
   labId         String    // linux, docker, kubernetes, etc.
   exerciseId    String    // References exercise ID from lab-exercises.ts
   status        String    @default("not_started") // not_started, in_progress, completed
@@ -141,12 +208,15 @@ model LabExerciseProgress {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  @@unique([labId, exerciseId])
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, labId, exerciseId])
 }
 
 // Lab Session Tracking
 model LabSession {
   id            String    @id @default(cuid())
+  userId        String
   labId         String    // linux, docker, kubernetes, etc.
   startedAt     DateTime  @default(now())
   endedAt       DateTime?
@@ -155,4 +225,6 @@ model LabSession {
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

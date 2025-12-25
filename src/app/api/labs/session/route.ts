@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-// Type inferred from Prisma schema
-type LabSessionRecord = {
-  id: string
-  labId: string
-  startedAt: Date
-  endedAt: Date | null
-  duration: number
-  commandsRun: number
-  createdAt: Date
-  updatedAt: Date
+// Helper to get current user
+async function getCurrentUser() {
+  return prisma.user.findFirst({
+    orderBy: { createdAt: "asc" }
+  })
 }
 
 // POST /api/labs/session - Start or update a lab session
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { action, sessionId, labId, commandsRun } = body
 
@@ -30,6 +33,7 @@ export async function POST(request: NextRequest) {
 
       const session = await prisma.labSession.create({
         data: {
+          userId: user.id,
           labId,
           startedAt: new Date(),
         },
@@ -110,10 +114,18 @@ export async function POST(request: NextRequest) {
 // GET /api/labs/session - Get session stats
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const labId = searchParams.get("labId")
 
-    const where = labId ? { labId } : {}
+    const where = labId ? { userId: user.id, labId } : { userId: user.id }
 
     const sessions = await prisma.labSession.findMany({
       where,
@@ -122,12 +134,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Aggregate stats
-    const totalDuration = sessions.reduce((sum: number, s: LabSessionRecord) => sum + s.duration, 0)
-    const totalCommands = sessions.reduce((sum: number, s: LabSessionRecord) => sum + s.commandsRun, 0)
+    const totalDuration = sessions.reduce((sum, s) => sum + s.duration, 0)
+    const totalCommands = sessions.reduce((sum, s) => sum + s.commandsRun, 0)
 
     // Group by lab
     const labStats: Record<string, { sessions: number; duration: number; commands: number }> = {}
-    sessions.forEach((s: LabSessionRecord) => {
+    sessions.forEach((s) => {
       if (!labStats[s.labId]) {
         labStats[s.labId] = { sessions: 0, duration: 0, commands: 0 }
       }

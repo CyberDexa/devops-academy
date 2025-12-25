@@ -1,55 +1,46 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-// Types inferred from Prisma schema
-type LabExerciseProgressRecord = {
-  id: string
-  labId: string
-  exerciseId: string
-  status: string
-  currentStep: number
-  completedSteps: string
-  xpEarned: number
-  startedAt: Date | null
-  completedAt: Date | null
-  createdAt: Date
-  updatedAt: Date
-}
-
-type LabSessionRecord = {
-  id: string
-  labId: string
-  startedAt: Date
-  endedAt: Date | null
-  duration: number
-  commandsRun: number
-  createdAt: Date
-  updatedAt: Date
+// Helper to get current user
+async function getCurrentUser() {
+  return prisma.user.findFirst({
+    orderBy: { createdAt: "asc" }
+  })
 }
 
 // GET /api/labs/progress - Get all lab exercise progress
 export async function GET() {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
     const progress = await prisma.labExerciseProgress.findMany({
+      where: { userId: user.id },
       orderBy: { updatedAt: "desc" },
     })
 
     // Parse completedSteps JSON for each progress record
-    const progressWithParsedSteps = progress.map((p: LabExerciseProgressRecord) => ({
+    const progressWithParsedSteps = progress.map((p) => ({
       ...p,
       completedSteps: JSON.parse(p.completedSteps),
     }))
 
     // Get lab session stats
     const sessions = await prisma.labSession.findMany({
+      where: { userId: user.id },
       orderBy: { startedAt: "desc" },
       take: 10,
     })
 
     // Calculate total stats
-    const totalXpEarned = progress.reduce((sum: number, p: LabExerciseProgressRecord) => sum + p.xpEarned, 0)
-    const completedCount = progress.filter((p: LabExerciseProgressRecord) => p.status === "completed").length
-    const totalTimeSpent = sessions.reduce((sum: number, s: LabSessionRecord) => sum + s.duration, 0)
+    const totalXpEarned = progress.reduce((sum, p) => sum + p.xpEarned, 0)
+    const completedCount = progress.filter((p) => p.status === "completed").length
+    const totalTimeSpent = sessions.reduce((sum, s) => sum + s.duration, 0)
 
     return NextResponse.json({
       progress: progressWithParsedSteps,
@@ -58,7 +49,7 @@ export async function GET() {
         totalXpEarned,
         completedCount,
         totalTimeSpent,
-        totalCommandsRun: sessions.reduce((sum: number, s: LabSessionRecord) => sum + s.commandsRun, 0),
+        totalCommandsRun: sessions.reduce((sum, s) => sum + s.commandsRun, 0),
       },
     })
   } catch (error) {
@@ -73,6 +64,14 @@ export async function GET() {
 // POST /api/labs/progress - Update exercise progress
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { labId, exerciseId, status, currentStep, completedSteps, xpEarned } = body
 
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const progress = await prisma.labExerciseProgress.upsert({
       where: {
-        labId_exerciseId: { labId, exerciseId },
+        userId_labId_exerciseId: { userId: user.id, labId, exerciseId },
       },
       update: {
         status: status || "in_progress",
@@ -95,6 +94,7 @@ export async function POST(request: NextRequest) {
         completedAt: status === "completed" ? new Date() : null,
       },
       create: {
+        userId: user.id,
         labId,
         exerciseId,
         status: status || "in_progress",
@@ -105,6 +105,17 @@ export async function POST(request: NextRequest) {
         completedAt: status === "completed" ? new Date() : null,
       },
     })
+
+    // If completed, update user XP
+    if (status === "completed" && xpEarned > 0) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          totalXp: { increment: xpEarned },
+          lastActiveAt: new Date(),
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -125,6 +136,14 @@ export async function POST(request: NextRequest) {
 // DELETE /api/labs/progress - Reset exercise progress
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const labId = searchParams.get("labId")
     const exerciseId = searchParams.get("exerciseId")
@@ -133,13 +152,13 @@ export async function DELETE(request: NextRequest) {
       // Delete specific exercise progress
       await prisma.labExerciseProgress.delete({
         where: {
-          labId_exerciseId: { labId, exerciseId },
+          userId_labId_exerciseId: { userId: user.id, labId, exerciseId },
         },
       })
     } else if (labId) {
       // Delete all progress for a lab
       await prisma.labExerciseProgress.deleteMany({
-        where: { labId },
+        where: { userId: user.id, labId },
       })
     } else {
       return NextResponse.json(
