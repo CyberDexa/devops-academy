@@ -116,10 +116,28 @@ async function main() {
 
       if (mod.project) {
         const project = mod.project;
-        
+
         let projectContent = `# ${project.title}\n\n${project.description}\n\n`;
         projectContent += `**Duration:** ${project.duration}\n\n`;
         projectContent += `**XP Reward:** ${project.xpReward} XP\n\n`;
+
+        const appendTextSection = (heading: string, text?: string) => {
+          if (!text) return;
+          projectContent += `## ${heading}\n\n${text}\n\n`;
+        };
+
+        const appendListSection = (heading: string, items?: string[]) => {
+          if (!items || items.length === 0) return;
+          projectContent += `## ${heading}\n\n`;
+          items.forEach((item) => {
+            projectContent += `- ${item}\n`;
+          });
+          projectContent += '\n';
+        };
+
+        appendTextSection('📌 Overview', (project as any).overview);
+        appendListSection('✅ Prerequisites', (project as any).prerequisites);
+        appendListSection('🧰 Suggested Stack', (project as any).suggestedStack);
         
         if (project.objectives && project.objectives.length > 0) {
           projectContent += '## Requirements\n\n';
@@ -128,6 +146,19 @@ async function main() {
           });
           projectContent += '\n';
         }
+
+        appendListSection('🧭 Milestones', (project as any).milestones);
+        appendListSection('✅ Acceptance Criteria', (project as any).acceptanceCriteria);
+
+        const starterCommands = (project as any).starterCommands as string[] | undefined;
+        if (starterCommands && starterCommands.length > 0) {
+          projectContent += '## 🧪 Starter Commands\n\n```bash\n';
+          projectContent += `${starterCommands.join('\n')}\n`;
+          projectContent += '```\n\n';
+        }
+
+        appendListSection('🧯 Incident Runbooks', (project as any).incidentRunbooks);
+        appendListSection('🌟 Stretch Goals', (project as any).stretchGoals);
         
         if (project.deliverables && project.deliverables.length > 0) {
           projectContent += '## Deliverables\n\n';

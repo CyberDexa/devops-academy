@@ -125,3 +125,34 @@ model Skill {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// Lab Exercise Progress
+model LabExerciseProgress {
+  id            String    @id @default(cuid())
+  labId         String    // linux, docker, kubernetes, etc.
+  exerciseId    String    // References exercise ID from lab-exercises.ts
+  status        String    @default("not_started") // not_started, in_progress, completed
+  currentStep   Int       @default(0)
+  completedSteps String   @default("[]") // JSON array of completed step IDs
+  xpEarned      Int       @default(0)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([labId, exerciseId])
+}
+
+// Lab Session Tracking
+model LabSession {
+  id            String    @id @default(cuid())
+  labId         String    // linux, docker, kubernetes, etc.
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  duration      Int       @default(0) // seconds
+  commandsRun   Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

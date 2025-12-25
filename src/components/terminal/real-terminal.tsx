@@ -14,6 +14,7 @@ interface TerminalProps {
   lessonId?: string
   onClose?: () => void
   showSettings?: boolean
+  onCommand?: (command: string) => void
 }
 
 export function RealTerminal({ 
@@ -21,12 +22,14 @@ export function RealTerminal({
   title = "Terminal",
   lessonId,
   onClose,
-  showSettings = true
+  showSettings = true,
+  onCommand
 }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<any>(null)
   const fitAddonRef = useRef<any>(null)
   const socketRef = useRef<Socket | null>(null)
+  const commandBufferRef = useRef<string>("")
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting')
@@ -180,10 +183,34 @@ export function RealTerminal({
           setConnectionStatus('error')
         })
 
-        // Send keystrokes to server
+        // Send keystrokes to server and track commands
         term.onData((data: string) => {
           if (socket.connected) {
             socket.emit('terminal:input', data)
+            
+            // Track command input for validation
+            if (onCommand) {
+              // Enter key (carriage return)
+              if (data === '\r' || data === '\n') {
+                const command = commandBufferRef.current.trim()
+                if (command) {
+                  onCommand(command)
+                }
+                commandBufferRef.current = ""
+              }
+              // Backspace
+              else if (data === '\x7f' || data === '\b') {
+                commandBufferRef.current = commandBufferRef.current.slice(0, -1)
+              }
+              // Ctrl+C or Ctrl+U - clear buffer
+              else if (data === '\x03' || data === '\x15') {
+                commandBufferRef.current = ""
+              }
+              // Regular character
+              else if (data.length === 1 && data.charCodeAt(0) >= 32) {
+                commandBufferRef.current += data
+              }
+            }
           }
         })
 

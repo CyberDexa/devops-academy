@@ -7,7 +7,15 @@ export interface Lesson {
   duration: string;
   type: 'theory' | 'hands-on' | 'project' | 'quiz';
   description: string;
+  overview?: string;
+  prerequisites?: string[];
+  suggestedStack?: string[];
   objectives?: string[];
+  milestones?: string[];
+  acceptanceCriteria?: string[];
+  starterCommands?: string[];
+  incidentRunbooks?: string[];
+  stretchGoals?: string[];
   content?: string;
   codeExamples?: { language: string; code: string; title?: string }[];
   commands?: string[];
@@ -3094,7 +3102,76 @@ spec:
             type: 'hands-on',
             description: 'Learn service boundaries, API Gateway, service mesh, and event-driven architecture.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Define service boundaries using bounded contexts and domain-driven design (DDD) basics',
+              'Choose between synchronous (request/response) and asynchronous (event-driven) collaboration',
+              'Apply core microservices patterns: API Gateway, Backend-for-Frontend (BFF), and Strangler Fig',
+              'Understand service mesh responsibilities (mTLS, traffic policy, retries, observability)',
+              'Use event-driven patterns like Outbox to keep data consistent across services',
+              'Recognize when a modular monolith is the better starting point'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Service Boundaries (Example Bounded Contexts)',
+                code: `E-Commerce Example Boundaries
+
+- Identity & Access: users, auth, roles
+- Catalog: products, categories, pricing
+- Cart: cart items, promotions, totals
+- Orders: order lifecycle, fulfillment state
+- Payments: payment intents, receipts
+
+Rule of thumb: each service owns its data and exposes capabilities via APIs/events.`
+              },
+              {
+                language: 'yaml',
+                title: 'API Gateway (Kubernetes Ingress Example)',
+                code: `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+spec:
+  rules:
+  - host: api.local
+    http:
+      paths:
+      - path: /catalog
+        pathType: Prefix
+        backend:
+          service:
+            name: catalog-svc
+            port:
+              number: 80
+      - path: /orders
+        pathType: Prefix
+        backend:
+          service:
+            name: orders-svc
+            port:
+              number: 80`
+              },
+              {
+                language: 'text',
+                title: 'Event-Driven Collaboration (High-Level Flow)',
+                code: `OrderCreated event
+
+1) Orders service persists the order + writes an outbox record (same DB transaction)
+2) A publisher reads outbox and publishes OrderCreated
+3) Payments service consumes OrderCreated and starts payment workflow
+4) Inventory service consumes OrderCreated and reserves stock
+
+Benefit: loose coupling + resilience. Trade-off: eventual consistency.`
+              }
+            ],
+            commands: [
+              'kubectl get svc,deploy -A',
+              'kubectl get ingress -A',
+              'kubectl describe ingress api-gateway',
+              'kubectl logs deploy/<service> --tail=200',
+              'kubectl top pods -A'
+            ]
           },
           {
             id: 'lesson-9-2',
@@ -3103,7 +3180,73 @@ spec:
             type: 'hands-on',
             description: 'Implement REST, gRPC, message queues, and circuit breakers.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Compare REST vs gRPC and decide based on latency, contracts, and client ecosystem',
+              'Use asynchronous messaging for decoupling and smoothing traffic spikes',
+              'Apply timeouts, retries, and circuit breakers without amplifying failures',
+              'Design idempotent handlers to tolerate retries and at-least-once delivery',
+              'Understand API versioning strategies and backward compatibility',
+              'Instrument requests with correlation IDs for end-to-end tracing'
+            ],
+            codeExamples: [
+              {
+                language: 'http',
+                title: 'REST Contract (Example)',
+                code: `GET /v1/catalog/products/{id}
+Accept: application/json
+
+200 OK
+{
+  "id": "p_123",
+  "name": "Keyboard",
+  "price": 49.99,
+  "currency": "USD"
+}`
+              },
+              {
+                language: 'proto',
+                title: 'gRPC Contract (Example)',
+                code: `syntax = "proto3";
+
+package catalog.v1;
+
+service CatalogService {
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message GetProductResponse {
+  string id = 1;
+  string name = 2;
+  double price = 3;
+  string currency = 4;
+}`
+              },
+              {
+                language: 'text',
+                title: 'Resilient Client Defaults (Conceptual)',
+                code: `Client-side rules to prevent cascading failure
+
+- Always set a timeout
+- Retry only transient errors (timeouts, 429/503, network)
+- Use exponential backoff + jitter
+- Cap retries (2-3 attempts)
+- Add a circuit breaker for dependencies
+- Prefer bulkheads for isolation
+- Emit metrics: latency, error rate, saturation`
+              }
+            ],
+            commands: [
+              'curl -sS http://localhost:3000/health',
+              'curl -sS http://api.local/catalog/products/p_123',
+              'kubectl get pods -n default',
+              'kubectl logs deploy/<service> -n default --tail=200',
+              'kubectl port-forward svc/<service> 8080:80'
+            ]
           },
           {
             id: 'lesson-9-3',
@@ -3112,7 +3255,59 @@ spec:
             type: 'hands-on',
             description: 'Implement circuit breakers, retries, bulkheads, and chaos engineering.',
             xpReward: 100,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Implement resilience patterns: timeout, retry with jitter, circuit breaker, and bulkheads',
+              'Separate normal failures from overload failures using backpressure',
+              'Define SLOs and error budgets to guide reliability decisions',
+              'Design graceful degradation (reduced features instead of total outage)',
+              'Run a small chaos experiment with blast radius control',
+              'Add runbooks and alerts that reduce mean time to recovery (MTTR)'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Retry Policy (Guidance)',
+                code: `Recommended retry behavior
+
+- Retry only on transient errors
+- Use exponential backoff + jitter
+- Cap retries (2-3 attempts)
+- Enforce per-try and overall time budgets
+- Ensure idempotency (idempotency keys or dedupe store)`
+              },
+              {
+                language: 'text',
+                title: 'Bulkhead Pattern (Concept)',
+                code: `Bulkhead = isolate resources
+
+Example:
+- Separate thread pools/queues per downstream dependency
+- Prevent one slow dependency from exhausting all workers
+
+Result:
+- Partial degradation instead of full outage`
+              },
+              {
+                language: 'bash',
+                title: 'Chaos Drill (Simple Pod Kill)',
+                code: `# Pick a non-production namespace for drills
+kubectl get pods -n default
+
+# Delete one pod to validate self-heal
+kubectl delete pod -n default <pod-name>
+
+# Confirm replacement
+kubectl get pods -n default -w`
+              }
+            ],
+            commands: [
+              'kubectl get events -n default --sort-by=.metadata.creationTimestamp | tail -50',
+              'kubectl describe deploy/<service> -n default',
+              'kubectl rollout status deploy/<service> -n default --timeout=120s',
+              'kubectl rollout history deploy/<service> -n default',
+              'kubectl rollout undo deploy/<service> -n default'
+            ]
           }
         ],
         project: {
@@ -3177,7 +3372,77 @@ spec:
             type: 'hands-on',
             description: 'Bootstrap clusters, manage nodes, handle upgrades, and backups.',
             xpReward: 250,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Understand cluster lifecycle responsibilities: bootstrap, scale, upgrade, and decommission',
+              'Operate nodes safely: cordon, drain, and uncordon without disrupting SLOs',
+              'Plan and execute Kubernetes upgrades (control plane and nodes) with rollback strategy',
+              'Implement and validate etcd backup/restore procedures (disaster recovery basics)',
+              'Harden access with RBAC and least privilege for cluster operators',
+              'Use cluster health signals (events, node conditions, component status) to troubleshoot'
+            ],
+            codeExamples: [
+              {
+                language: 'bash',
+                title: 'Node Maintenance (Cordon → Drain → Uncordon)',
+                code: `# Mark a node unschedulable
+kubectl cordon <node-name>
+
+# Evict workloads safely (respecting PDBs where possible)
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data --grace-period=60
+
+# Perform maintenance/upgrade... then re-enable scheduling
+kubectl uncordon <node-name>`
+              },
+              {
+                language: 'yaml',
+                title: 'Cluster Operator RBAC (Example: Read-only)',
+                code: `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ops-readonly
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ops-readonly-binding
+subjects:
+- kind: User
+  name: ops@example.com
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: ops-readonly
+  apiGroup: rbac.authorization.k8s.io`
+              },
+              {
+                language: 'bash',
+                title: 'etcd Backup (Conceptual Commands)',
+                code: `# NOTE: exact paths/flags depend on your distro (kubeadm, managed K8s, etc.)
+
+# Example: snapshot etcd
+ETCDCTL_API=3 etcdctl snapshot save /backup/etcd-snapshot.db \
+  --endpoints=https://127.0.0.1:2379 \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key
+
+ETCDCTL_API=3 etcdctl snapshot status /backup/etcd-snapshot.db` 
+              }
+            ],
+            commands: [
+              'kubectl get nodes -o wide',
+              'kubectl describe node <node-name>',
+              'kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -50',
+              'kubectl top nodes',
+              'kubectl cordon <node-name>',
+              'kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data',
+              'kubectl uncordon <node-name>'
+            ]
           },
           {
             id: 'lesson-10-2',
@@ -3186,7 +3451,72 @@ spec:
             type: 'hands-on',
             description: 'Configure PDBs, priority classes, resource quotas, and autoscaling.',
             xpReward: 225,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Use PodDisruptionBudgets (PDBs) to control voluntary disruption during upgrades',
+              'Apply PriorityClasses to protect critical workloads under resource pressure',
+              'Enforce ResourceQuotas and LimitRanges to prevent noisy-neighbor issues',
+              'Configure Horizontal Pod Autoscaler (HPA) and understand scaling signals/limits',
+              'Use Cluster Autoscaler concepts (node scaling) and scheduling constraints',
+              'Design workloads with readiness/liveness probes for safe rollouts'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'PodDisruptionBudget (Min Available)',
+                code: `apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api` 
+              },
+              {
+                language: 'yaml',
+                title: 'PriorityClass (Protect Critical Services)',
+                code: `apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: critical-services
+value: 100000
+globalDefault: false
+description: "Used for critical workloads"` 
+              },
+              {
+                language: 'yaml',
+                title: 'HPA (CPU-based Autoscaling)',
+                code: `apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60` 
+              }
+            ],
+            commands: [
+              'kubectl get pdb -A',
+              'kubectl describe pdb <pdb-name> -n <ns>',
+              'kubectl get priorityclass',
+              'kubectl get resourcequota -A',
+              'kubectl get limitrange -A',
+              'kubectl get hpa -A',
+              'kubectl describe hpa <hpa-name> -n <ns>'
+            ]
           },
           {
             id: 'lesson-10-3',
@@ -3195,7 +3525,81 @@ spec:
             type: 'hands-on',
             description: 'Master Istio for traffic management, security, and observability.',
             xpReward: 250,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain what a service mesh does (mTLS, traffic policy, telemetry) and what it does not do',
+              'Install and validate a mesh (Istio) in a cluster safely',
+              'Apply traffic management: retries, timeouts, request routing, and progressive delivery basics',
+              'Secure service-to-service communication with mTLS and authorization policies',
+              'Use mesh telemetry to troubleshoot latency and error spikes',
+              'Avoid common mesh pitfalls (overly aggressive retries, global policies, noisy telemetry)'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'DestinationRule (mTLS + Connection Pool)',
+                code: `apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-dr
+spec:
+  host: api.default.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 1000` 
+              },
+              {
+                language: 'yaml',
+                title: 'VirtualService (Weighted Routing Canary)',
+                code: `apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-vs
+spec:
+  hosts:
+  - api
+  http:
+  - route:
+    - destination:
+        host: api
+        subset: stable
+      weight: 90
+    - destination:
+        host: api
+        subset: canary
+      weight: 10` 
+              },
+              {
+                language: 'yaml',
+                title: 'AuthorizationPolicy (Zero Trust Example)',
+                code: `apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: api-allow-orders
+spec:
+  selector:
+    matchLabels:
+      app: api
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - cluster.local/ns/default/sa/orders-sa` 
+              }
+            ],
+            commands: [
+              'kubectl create namespace istio-system',
+              'istioctl install --set profile=demo -y',
+              'kubectl label namespace default istio-injection=enabled --overwrite',
+              'kubectl get pods -n istio-system',
+              'kubectl get virtualservice,destinationrule -A',
+              'istioctl proxy-status'
+            ]
           }
         ]
       },
@@ -3214,7 +3618,58 @@ spec:
             type: 'hands-on',
             description: 'Configure Prometheus, write PromQL queries, and build Grafana dashboards.',
             xpReward: 250,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain metrics fundamentals (counters, gauges, histograms) and when to use each',
+              'Deploy Prometheus and identify what it is scraping (targets, service discovery)',
+              'Write PromQL queries for golden signals: latency, traffic, errors, saturation',
+              'Build Grafana dashboards that support incident response (not vanity charts)',
+              'Create alert rules with correct thresholds and burn-rate mindset',
+              'Avoid common monitoring anti-patterns (alert fatigue, missing context)'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'ServiceMonitor (Prometheus Operator Example)',
+                code: `apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-servicemonitor
+spec:
+  selector:
+    matchLabels:
+      app: api
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s` 
+              },
+              {
+                language: 'promql',
+                title: 'PromQL: Request Rate + Error Rate',
+                code: `# Requests per second (all 2xx/3xx/4xx/5xx)
+sum(rate(http_requests_total[5m]))
+
+# Error rate (5xx only)
+sum(rate(http_requests_total{status=~"5.."}[5m]))` 
+              },
+              {
+                language: 'promql',
+                title: 'PromQL: Latency (p95) From Histogram',
+                code: `histogram_quantile(
+  0.95,
+  sum by (le) (rate(http_request_duration_seconds_bucket[5m]))
+)` 
+              }
+            ],
+            commands: [
+              'kubectl create namespace monitoring',
+              'kubectl get pods -n monitoring',
+              'kubectl get svc -n monitoring',
+              'kubectl port-forward -n monitoring svc/grafana 3000:80',
+              'kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090',
+              'kubectl get servicemonitor -A'
+            ]
           },
           {
             id: 'lesson-11-2',
@@ -3223,7 +3678,60 @@ spec:
             type: 'hands-on',
             description: 'Set up centralized logging with Loki and Promtail.',
             xpReward: 225,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain structured logging and why “grep-able” logs are not enough in production',
+              'Deploy Loki + Promtail (or Fluent Bit) and verify log ingestion end-to-end',
+              'Write LogQL queries to debug incidents (filters, parsing, aggregation)',
+              'Design log labels safely (avoid high cardinality that breaks cost/perf)',
+              'Correlate logs with metrics and traces using correlation IDs',
+              'Set retention and access controls to meet operational and compliance needs'
+            ],
+            codeExamples: [
+              {
+                language: 'json',
+                title: 'Structured Log (Example)',
+                code: `{
+  "level": "info",
+  "service": "orders",
+  "message": "Created order",
+  "orderId": "o_123",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "spanId": "00f067aa0ba902b7",
+  "userId": "u_42"
+}`
+              },
+              {
+                language: 'text',
+                title: 'LogQL (Common Patterns)',
+                code: `{service="orders"} |= "error"
+
+{service="orders"} | json | level="error"
+
+count_over_time({service="orders"} |= "timeout" [5m])` 
+              },
+              {
+                language: 'yaml',
+                title: 'Promtail Pipeline (Conceptual)',
+                code: `pipeline_stages:
+- json:
+    expressions:
+      level: level
+      service: service
+      traceId: traceId
+- labels:
+    service:
+    level:` 
+              }
+            ],
+            commands: [
+              'kubectl create namespace logging',
+              'kubectl get pods -n logging',
+              'kubectl get svc -n logging',
+              'kubectl logs -n logging deploy/loki --tail=200',
+              'kubectl logs -n logging ds/promtail --tail=200',
+              'kubectl port-forward -n logging svc/loki 3100:3100'
+            ]
           },
           {
             id: 'lesson-11-3',
@@ -3232,7 +3740,55 @@ spec:
             type: 'hands-on',
             description: 'Implement OpenTelemetry and Jaeger for request tracing.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain traces, spans, and context propagation (why logs alone are insufficient)',
+              'Instrument a service with OpenTelemetry (OTel) and export spans to Jaeger',
+              'Trace a request across services and identify the slow hop',
+              'Use semantic conventions (service.name, http.method, status) for consistency',
+              'Avoid tracing pitfalls (sampling, PII in attributes, noisy spans)',
+              'Correlate traces with logs and metrics via trace IDs'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'OpenTelemetry Collector (Minimal Export to Jaeger)',
+                code: `receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  jaeger:
+    endpoint: jaeger-collector.default.svc.cluster.local:14250
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [jaeger]` 
+              },
+              {
+                language: 'text',
+                title: 'Trace Debug Checklist',
+                code: `When a request is slow:
+
+1) Find the trace for the request
+2) Identify the span with the longest duration
+3) Check if it's CPU-bound, IO-bound, or blocked on a dependency
+4) Validate retries/timeouts are not amplifying work
+5) Correlate with logs (traceId) and metrics (latency/error spikes)` 
+              }
+            ],
+            commands: [
+              'kubectl get pods -A | grep -i jaeger',
+              'kubectl port-forward svc/jaeger-query 16686:16686',
+              'kubectl logs deploy/<service> --tail=200',
+              'kubectl describe deploy/<service>'
+            ]
           },
           {
             id: 'lesson-11-4',
@@ -3241,7 +3797,53 @@ spec:
             type: 'hands-on',
             description: 'Set up APM, uptime monitoring, and define SLIs/SLOs.',
             xpReward: 100,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Define SLIs and SLOs that reflect user experience (not internal metrics)',
+              'Use burn-rate alerting concepts to balance fast detection with low noise',
+              'Set up synthetic checks (uptime + basic flows) for early warning',
+              'Create incident-ready dashboards (golden signals + top dependencies)',
+              'Understand APM trade-offs (sampling, cost, PII) and safe instrumentation',
+              'Write a minimal runbook: alert → diagnosis steps → rollback/mitigation'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'SLI/SLO Example',
+                code: `Example SLO for an API:
+
+- SLI: % of requests with HTTP 2xx/3xx within 300ms
+- SLO: 99.9% over 30 days
+- Error budget: 0.1% of requests can violate the SLO` 
+              },
+              {
+                language: 'bash',
+                title: 'Synthetic Check (Simple)',
+                code: `# Example uptime/synthetic check
+curl -fsS https://api.example.com/health
+
+# Example basic flow check
+curl -fsS https://api.example.com/catalog/products/p_123 | head -50` 
+              },
+              {
+                language: 'text',
+                title: 'Runbook Skeleton (Minimum)',
+                code: `Runbook Template
+
+1) What does the alert mean?
+2) What dashboards confirm impact?
+3) Common causes and quick checks
+4) Mitigation steps (scale, rollback, feature flag)
+5) Escalation + comms` 
+              }
+            ],
+            commands: [
+              'curl -fsS http://localhost:3000/health',
+              'kubectl get pods -A',
+              'kubectl top pods -A',
+              'kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -50',
+              'kubectl rollout status deploy/<service> -n <ns> --timeout=120s'
+            ]
           }
         ]
       },
@@ -3260,7 +3862,77 @@ spec:
             type: 'hands-on',
             description: 'Image scanning, runtime security, admission controllers, and Pod Security.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Understand the container threat model across build, ship, and run stages',
+              'Scan images for vulnerabilities and interpret results (severity, fixability, false positives)',
+              'Implement least-privilege runtime configuration (runAsNonRoot, readOnlyRootFilesystem, drop caps)',
+              'Apply Kubernetes Pod Security Standards (baseline/restricted) and enforce via admission',
+              'Add supply-chain controls (SBOMs, signature verification, provenance basics)',
+              'Create a simple response workflow for new CVEs (triage → patch → redeploy)'
+            ],
+            codeExamples: [
+              {
+                language: 'dockerfile',
+                title: 'Hardened Dockerfile Pattern (Non-root + Minimal)',
+                code: `# Example pattern (language/runtime varies)
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Create non-root user
+RUN addgroup -S app && adduser -S app -G app
+USER app
+
+COPY --from=build /app/dist ./dist
+CMD ["node", "dist/server.js"]`
+              },
+              {
+                language: 'yaml',
+                title: 'Pod Security Context (Least Privilege)',
+                code: `apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-pod
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: app
+    image: myorg/app:1.0.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]`
+              },
+              {
+                language: 'yaml',
+                title: 'Pod Security Admission Labels (Restricted)',
+                code: `# Apply on a namespace
+kubectl label ns my-namespace \
+  pod-security.kubernetes.io/enforce=restricted \
+  pod-security.kubernetes.io/audit=restricted \
+  pod-security.kubernetes.io/warn=restricted --overwrite`
+              }
+            ],
+            commands: [
+              'docker build -t myorg/app:local .',
+              'docker scout cves myorg/app:local',
+              'trivy image myorg/app:local',
+              'kubectl get ns --show-labels',
+              'kubectl label ns <ns> pod-security.kubernetes.io/enforce=restricted --overwrite',
+              'kubectl describe pod <pod> -n <ns>'
+            ]
           },
           {
             id: 'lesson-12-2',
@@ -3269,7 +3941,87 @@ spec:
             type: 'hands-on',
             description: 'Use Vault, External Secrets Operator, and Sealed Secrets.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Understand secret lifecycle: creation, storage, rotation, and revocation',
+              'Differentiate config vs secrets and avoid leaking secrets into logs/images/repos',
+              'Use Kubernetes Secrets safely (least exposure, RBAC, avoid env var dumps)',
+              'Use Sealed Secrets for GitOps-friendly encrypted secret storage',
+              'Use External Secrets Operator for pulling secrets from Vault/Cloud providers',
+              'Design rotation workflows without downtime (dual keys, staged rollout)'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'Kubernetes Secret (Opaque) + Mount as File',
+                code: `apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+type: Opaque
+stringData:
+  username: app
+  password: super-secret
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+spec:
+  containers:
+  - name: app
+    image: myorg/app:1.0.0
+    volumeMounts:
+    - name: db-creds
+      mountPath: /secrets
+      readOnly: true
+  volumes:
+  - name: db-creds
+    secret:
+      secretName: db-credentials`
+              },
+              {
+                language: 'yaml',
+                title: 'SealedSecret (Conceptual Example)',
+                code: `apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: db-credentials
+  namespace: default
+spec:
+  encryptedData:
+    password: AgBf...redacted...
+  template:
+    type: Opaque`
+              },
+              {
+                language: 'yaml',
+                title: 'ExternalSecret (ESO Conceptual Example)',
+                code: `apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: db-credentials
+  data:
+  - secretKey: password
+    remoteRef:
+      key: kv/app/db
+      property: password`
+              }
+            ],
+            commands: [
+              'kubectl create secret generic db-credentials --from-literal=username=app --from-literal=password=changeme',
+              'kubectl get secret db-credentials -o yaml',
+              'kubectl auth can-i get secrets -n <ns> --as <user>',
+              'kubeseal --format=yaml < secret.yaml > sealedsecret.yaml',
+              'kubectl apply -f sealedsecret.yaml'
+            ]
           },
           {
             id: 'lesson-12-3',
@@ -3278,7 +4030,78 @@ spec:
             type: 'hands-on',
             description: 'Implement RBAC, audit logging, and policy as code.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Understand the purpose of audit logs: who did what, when, and from where',
+              'Implement least-privilege RBAC and validate access with `kubectl auth can-i`',
+              'Adopt policy-as-code to prevent insecure workloads from being deployed',
+              'Design evidence collection for compliance (retention, immutability, access controls)',
+              'Create a minimal incident/audit investigation workflow using logs and events',
+              'Document controls (what is enforced, how it is monitored, and how exceptions are handled)'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'RBAC: Namespace Read-Only Role',
+                code: `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ns-readonly
+  namespace: default
+rules:
+- apiGroups: ["", "apps"]
+  resources: ["pods", "services", "deployments"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ns-readonly-binding
+  namespace: default
+subjects:
+- kind: User
+  name: analyst@example.com
+roleRef:
+  kind: Role
+  name: ns-readonly
+  apiGroup: rbac.authorization.k8s.io`
+              },
+              {
+                language: 'yaml',
+                title: 'Kubernetes Audit Policy (Conceptual)',
+                code: `apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+- level: Metadata
+  resources:
+  - group: ""
+    resources: ["secrets"]
+- level: RequestResponse
+  verbs: ["create", "update", "patch", "delete"]
+  resources:
+  - group: "apps"
+    resources: ["deployments"]`
+              },
+              {
+                language: 'text',
+                title: 'Policy-as-Code Checklist (What to Enforce)',
+                code: `Examples of enforceable controls:
+
+- Disallow privileged pods
+- Require runAsNonRoot + drop capabilities
+- Require resource requests/limits
+- Restrict allowed registries
+- Require image signatures (if available)
+- Require approved namespaces and labels` 
+              }
+            ],
+            commands: [
+              'kubectl auth can-i create pods -n default --as=analyst@example.com',
+              'kubectl get role,rolebinding -n default',
+              'kubectl get clusterrole,clusterrolebinding | head -50',
+              'kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -50',
+              'kubectl describe ns <ns>'
+            ]
           }
         ],
         project: {
@@ -3342,6 +4165,13 @@ spec:
             description: 'Learn ML workflow, training vs inference, and model evaluation.',
             xpReward: 250,
             hasTerminal: true,
+            objectives: [
+              'Explain the ML lifecycle (data → training → evaluation → deployment → monitoring)',
+              'Differentiate training-time concerns vs inference-time concerns (latency, throughput, drift)',
+              'Define common problem types (classification, regression) and their evaluation metrics',
+              'Run a minimal supervised learning workflow end-to-end and persist artifacts',
+              'Identify operational risks: data leakage, skew, drift, reproducibility gaps'
+            ],
             codeExamples: [
               {
                 language: 'python',
@@ -3374,7 +4204,57 @@ print(f"Recall: {recall_score(y_test, y_pred)}")
 
 # Save model
 joblib.dump(model, 'model.joblib')`
+              },
+              {
+                language: 'python',
+                title: 'Training vs Inference (API Shape)',
+                code: `"""Minimal example showing different concerns in training vs inference."""
+
+import joblib
+import numpy as np
+
+def train(X_train, y_train):
+    from sklearn.linear_model import LogisticRegression
+    model = LogisticRegression(max_iter=200)
+    model.fit(X_train, y_train)
+    joblib.dump(model, 'model.joblib')
+    return model
+
+def predict(features):
+    # Inference should be fast, deterministic, and validated.
+    model = joblib.load('model.joblib')
+    features = np.asarray(features).reshape(1, -1)
+    proba = model.predict_proba(features)[0, 1]
+    return {"score": float(proba)}
+
+# Example inference payload
+print(predict([0.2, 1.1, -0.4, 0.0]))`
+              },
+              {
+                language: 'python',
+                title: 'Evaluation: Confusion Matrix and Thresholding',
+                code: `import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+
+# y_true and y_prob would come from your test set
+y_true = np.array([1, 0, 1, 0, 1, 0])
+y_prob = np.array([0.9, 0.6, 0.7, 0.2, 0.51, 0.1])
+
+threshold = 0.6
+y_pred = (y_prob >= threshold).astype(int)
+
+print('threshold:', threshold)
+print('confusion_matrix:\n', confusion_matrix(y_true, y_pred))
+print(classification_report(y_true, y_pred))`
               }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'python -m pip install -U pip',
+              'pip install pandas scikit-learn joblib',
+              'python -c "import sklearn; print(sklearn.__version__)"',
+              'python train.py',
+              'ls -lh model.joblib'
             ]
           },
           {
@@ -3384,7 +4264,78 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Master virtual environments, Jupyter, pandas, numpy, and scikit-learn.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Create reproducible Python environments for ML projects (venv/requirements lock)',
+              'Use notebooks responsibly (reproducible runs, parameterization mindset)',
+              'Perform basic data inspection and transformations using pandas',
+              'Structure ML code into modules and scripts (notebook → package)',
+              'Capture and debug common dependency and platform issues'
+            ],
+            codeExamples: [
+              {
+                language: 'bash',
+                title: 'Reproducible Environment (venv + requirements)',
+                code: `python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+
+pip install pandas numpy scikit-learn joblib jupyter
+
+pip freeze > requirements.txt
+python -c "import pandas, numpy, sklearn; print('ok')"`
+              },
+              {
+                language: 'python',
+                title: 'Pandas Data Audit (Nulls, Types, Drift Clues)',
+                code: `import pandas as pd
+
+df = pd.read_csv('data.csv')
+
+print('shape:', df.shape)
+print('\nhead:\n', df.head())
+print('\ndtypes:\n', df.dtypes)
+print('\nnulls:\n', df.isna().sum().sort_values(ascending=False).head(10))
+
+# Basic distribution sanity checks
+numeric_cols = df.select_dtypes(include='number').columns
+print('\nsummary:\n', df[numeric_cols].describe().T[['mean','std','min','max']].head())`
+              },
+              {
+                language: 'python',
+                title: 'Script-Friendly Notebook Pattern (main guard)',
+                code: `def run_training(data_path: str) -> str:
+    # Return path to saved artifact for downstream steps.
+    import joblib
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LogisticRegression
+
+    df = pd.read_csv(data_path)
+    X = df.drop('target', axis=1)
+    y = df['target']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = LogisticRegression(max_iter=200)
+    model.fit(X_train, y_train)
+
+    path = 'model.joblib'
+    joblib.dump(model, path)
+    return path
+
+if __name__ == '__main__':
+    artifact = run_training('data.csv')
+    print('saved:', artifact)`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install jupyter pandas numpy scikit-learn joblib',
+              'jupyter --version',
+              'python -c "import pandas as pd; print(pd.__version__)"',
+              'pip freeze | head -20'
+            ]
           }
         ]
       },
@@ -3403,7 +4354,35 @@ joblib.dump(model, 'model.joblib')`
             type: 'theory',
             description: 'Understand ML lifecycle stages, MLOps vs DevOps, and key tools.',
             xpReward: 75,
-            hasTerminal: false
+            hasTerminal: false,
+            objectives: [
+              'Explain end-to-end ML system stages (data, training, evaluation, deployment, monitoring)',
+              'Describe how MLOps extends DevOps (data + model + experiment lineage)',
+              'Identify core MLOps capabilities: reproducibility, versioning, CI/CD, governance',
+              'Map common tools to the lifecycle (MLflow, DVC, registries, serving frameworks)',
+              'Recognize failure modes: leakage, skew, drift, brittle environments'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Lifecycle Artifacts (What to Version)',
+                code: `DATA: raw snapshots, processed datasets, feature definitions
+CODE: training code, preprocessing, inference logic
+CONFIG: hyperparameters, environment, runtime settings
+ARTIFACTS: model binaries, metrics reports, plots
+LINEAGE: dataset version -> code version -> model version -> deployment version`
+              },
+              {
+                language: 'text',
+                title: 'MLOps Control Plane (Typical Components)',
+                code: `Experiment tracking: MLflow (params/metrics/artifacts)
+Data versioning: DVC (data snapshots + pipeline)
+Model registry: MLflow Registry / cloud registries
+Serving: FastAPI/BentoML/KServe
+Monitoring: logs, metrics, drift + performance monitoring
+Policy/governance: approvals, access control, audit trails`
+              }
+            ]
           },
           {
             id: 'lesson-14-2',
@@ -3412,7 +4391,63 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Log experiments, metrics, artifacts, and register models.',
             xpReward: 225,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Run MLflow locally and understand tracking URI concepts',
+              'Log parameters, metrics, and artifacts for repeatable experiments',
+              'Compare runs and select a candidate model based on metrics',
+              'Register a model version and record lineage',
+              'Package a model artifact for downstream serving'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'MLflow: Log Params, Metrics, and Model Artifact',
+                code: `import mlflow
+import mlflow.sklearn
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+X, y = load_iris(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+params = {"C": 1.0, "max_iter": 200}
+
+with mlflow.start_run(run_name="logreg-iris"):
+    model = LogisticRegression(**params)
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+
+    mlflow.log_params(params)
+    mlflow.log_metric("accuracy", acc)
+    mlflow.sklearn.log_model(model, artifact_path="model")
+
+    print("accuracy=", acc)`
+              },
+              {
+                language: 'bash',
+                title: 'MLflow UI + Local Tracking',
+                code: `# Start UI
+mlflow ui --host 0.0.0.0 --port 5000
+
+# In another terminal, run your training script
+python train.py
+
+# Open http://localhost:5000 to compare runs`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install mlflow scikit-learn pandas',
+              'mlflow --version',
+              'mlflow ui --host 0.0.0.0 --port 5000',
+              'python train.py'
+            ]
           },
           {
             id: 'lesson-14-3',
@@ -3421,7 +4456,51 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Version data, create pipelines, and track metrics.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Initialize DVC in a repo and understand how it relates to Git',
+              'Version datasets as first-class artifacts',
+              'Create a simple DVC pipeline (stages + dependencies)',
+              'Reproduce pipeline runs deterministically',
+              'Track and compare metrics across dataset versions'
+            ],
+            codeExamples: [
+              {
+                language: 'bash',
+                title: 'DVC: Initialize, Add Data, and Push',
+                code: `git init
+dvc init
+
+# Add dataset (creates .dvc file, data stays out of git)
+dvc add data/raw.csv
+git add data/raw.csv.dvc .gitignore
+git commit -m "Track raw dataset with DVC"
+
+# Configure a remote (example: local folder)
+dvc remote add -d localremote /tmp/dvcstore
+dvc push`
+              },
+              {
+                language: 'bash',
+                title: 'DVC Pipeline: Stages + Reproducibility',
+                code: `# Example stages: prepare -> train -> evaluate
+dvc stage add -n prepare -d src/prepare.py -d data/raw.csv -o data/clean.csv python src/prepare.py
+dvc stage add -n train -d src/train.py -d data/clean.csv -o models/model.joblib python src/train.py
+dvc stage add -n eval -d src/eval.py -d models/model.joblib -o reports/metrics.json python src/eval.py
+
+dvc repro
+dvc metrics show
+dvc dag`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install dvc',
+              'dvc --version',
+              'dvc init',
+              'dvc repro'
+            ]
           },
           {
             id: 'lesson-14-4',
@@ -3430,7 +4509,72 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Serve models with Flask/FastAPI and containerize.',
             xpReward: 150,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Define an inference API contract (request/response schema)',
+              'Load a saved model artifact and serve predictions via HTTP',
+              'Add basic validation and health endpoints',
+              'Containerize the service for consistent runtime',
+              'Smoke test the endpoint locally and via curl'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'FastAPI Inference Service (joblib model)',
+                code: `from fastapi import FastAPI
+from pydantic import BaseModel
+import joblib
+import numpy as np
+
+app = FastAPI()
+model = joblib.load('model.joblib')
+
+class PredictRequest(BaseModel):
+    features: list[float]
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+
+@app.post('/predict')
+def predict(req: PredictRequest):
+    x = np.asarray(req.features, dtype=float).reshape(1, -1)
+    y = model.predict(x)[0]
+    return {'prediction': int(y)}`
+              },
+              {
+                language: 'dockerfile',
+                title: 'Containerize the Inference API',
+                code: `FROM python:3.11-slim
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]`
+              },
+              {
+                language: 'bash',
+                title: 'Smoke Test the API',
+                code: `uvicorn app:app --host 0.0.0.0 --port 8000
+
+curl -s http://localhost:8000/health
+curl -s -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"features": [0.2, 1.1, -0.4, 0.0]}'`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install fastapi uvicorn joblib numpy',
+              'uvicorn app:app --host 0.0.0.0 --port 8000',
+              'curl -s http://localhost:8000/health',
+              'docker build -t ml-inference:local .'
+            ]
           }
         ]
       },
@@ -3449,7 +4593,63 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Create pipeline components, orchestrate workflows, and pass artifacts.',
             xpReward: 250,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain what a pipeline is: components, artifacts, parameters, and DAG execution',
+              'Build a small pipeline with 2–3 components and pass artifacts between steps',
+              'Understand compilation vs execution (pipeline spec, runs, experiments)',
+              'Use caching and parameterization to speed iteration safely',
+              'Troubleshoot common pipeline issues (image pulls, permissions, artifact paths)'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'KFP v2: Minimal 2-Step Pipeline (Artifact Passing)',
+                code: `from kfp import dsl
+from kfp import compiler
+
+@dsl.component
+def prepare_data(out_path: dsl.OutputPath(str)):
+    # Write a tiny artifact to a file path that downstream steps can read.
+    with open(out_path, 'w') as f:
+        f.write('cleaned-data-placeholder')
+
+@dsl.component
+def train_model(data_path: dsl.InputPath(str), model_path: dsl.OutputPath(str)):
+    with open(data_path, 'r') as f:
+        _ = f.read()
+    # Pretend we trained; write an artifact.
+    with open(model_path, 'w') as f:
+        f.write('model-artifact-placeholder')
+
+@dsl.pipeline(name='ml-pipeline-minimal')
+def pipeline():
+    prep = prepare_data()
+    train_model(data_path=prep.outputs['out_path'])
+
+compiler.Compiler().compile(pipeline_func=pipeline, package_path='pipeline.yaml')`
+              },
+              {
+                language: 'text',
+                title: 'Operational Concepts (How to Think About KFP)',
+                code: `Pipelines are Kubernetes workloads.
+
+Common operational failure points:
+- Image build/push issues (wrong tag, not pushed)
+- Registry auth from cluster
+- RBAC permissions for pipeline runner
+- Artifact store connectivity (MinIO/S3)
+- Resource requests/limits causing OOM/evictions`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install kfp',
+              'python -c "import kfp; print(kfp.__version__)"',
+              'python compile_pipeline.py',
+              'ls -lh pipeline.yaml'
+            ]
           },
           {
             id: 'lesson-15-2',
@@ -3458,7 +4658,68 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Build ML DAGs with Apache Airflow.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain DAG concepts: tasks, dependencies, schedules, retries, and backfills',
+              'Build an ML-oriented DAG with separate prepare/train/evaluate tasks',
+              'Use XComs or artifact paths safely (avoid large payloads)',
+              'Add operational hardening: retries, timeouts, SLAs, idempotency',
+              'Know when to use Airflow vs Kubeflow (batch orchestration vs ML-native pipelines)'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'Airflow DAG: Prepare → Train → Evaluate (TaskFlow API)',
+                code: `from datetime import datetime
+from airflow.decorators import dag, task
+
+@dag(
+    start_date=datetime(2024, 1, 1),
+    schedule=None,
+    catchup=False,
+    tags=['ml'],
+)
+def ml_dag():
+    @task
+    def prepare() -> str:
+        # Return a small reference (path/id), not a huge dataset.
+        return 'data/clean.csv'
+
+    @task
+    def train(clean_path: str) -> str:
+        # In real life: call a training script/container.
+        _ = clean_path
+        return 'models/model.joblib'
+
+    @task
+    def evaluate(model_path: str) -> dict:
+        _ = model_path
+        return {"accuracy": 0.9}
+
+    clean = prepare()
+    model = train(clean)
+    evaluate(model)
+
+ml_dag()`
+              },
+              {
+                language: 'text',
+                title: 'Idempotency Rules (So Retries Don’t Corrupt Results)',
+                code: `Good ML DAG tasks are idempotent:
+- Write outputs to deterministic locations per run
+- Avoid appending to shared files without locks
+- Use run-specific paths (execution_date/run_id)
+- Treat training as pure function of (data version, code version, params)`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install apache-airflow',
+              'airflow version',
+              'airflow db init',
+              'airflow standalone'
+            ]
           }
         ],
         project: {
@@ -3520,7 +4781,59 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Deploy with Seldon Core and TensorFlow Serving.',
             xpReward: 275,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Compare common serving platforms (Seldon/KServe vs TensorFlow Serving vs custom FastAPI)',
+              'Explain the production serving requirements: scaling, canarying, observability, and rollbacks',
+              'Deploy a model behind an inference endpoint and validate request/response contracts',
+              'Understand how routing and model versioning works (predictors, traffic splits)',
+              'Troubleshoot typical serving failures (model load errors, timeouts, serialization mismatches)'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'KServe (Conceptual) InferenceService',
+                code: `apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: iris-classifier
+spec:
+  predictor:
+    sklearn:
+      storageUri: "s3://my-bucket/models/iris/"
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "512Mi"`
+              },
+              {
+                language: 'text',
+                title: 'Serving Platform Decision Guide',
+                code: `Choose a platform when you need:
+- standardized deployment primitives (canary, scale-to-zero)
+- multi-model management and governance
+- consistent observability and security controls
+
+Choose custom serving (FastAPI) when:
+- model is simple and latency is predictable
+- you need custom preprocessing/postprocessing
+- platform adoption is not feasible yet`
+              },
+              {
+                language: 'bash',
+                title: 'Smoke Test an Inference Endpoint',
+                code: `curl -s http://MODEL_HOST/v1/models/iris:predict \
+  -H 'Content-Type: application/json' \
+  -d '{"instances": [[5.1,3.5,1.4,0.2]]}'`
+              }
+            ],
+            commands: [
+              'kubectl get ns',
+              'kubectl get pods -A | head -40',
+              'kubectl get crds | grep -E "kserve|seldon|inferenceservice" || true',
+              'kubectl describe pod <pod-name>',
+              'kubectl logs <pod-name> --tail=200'
+            ]
           },
           {
             id: 'lesson-16-2',
@@ -3529,7 +4842,52 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Quantization, pruning, ONNX conversion, and TensorFlow Lite.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain optimization goals: latency, throughput, memory, and cost',
+              'Understand trade-offs: accuracy vs performance and calibration needs',
+              'Convert a model to an interchange format (ONNX) conceptually',
+              'Identify when to use quantization and when it can break accuracy',
+              'Measure performance before/after optimization (baseline vs optimized)'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'Baseline Timing Harness (Before/After)',
+                code: `import time
+import numpy as np
+
+def benchmark(predict_fn, n=1000):
+    x = np.random.rand(1, 4).astype('float32')
+    # warmup
+    for _ in range(10):
+        predict_fn(x)
+    t0 = time.time()
+    for _ in range(n):
+        predict_fn(x)
+    dt = time.time() - t0
+    return dt / n
+
+# Replace predict_fn with your model inference call
+print('avg_seconds=', benchmark(lambda x: x.sum()))`
+              },
+              {
+                language: 'text',
+                title: 'Optimization Options (When to Use)',
+                code: `Quantization: reduce precision (FP32 -> INT8). Great for CPU/edge.
+Pruning: remove weights/neurons. Requires careful retraining.
+ONNX: portability across runtimes (onnxruntime).
+TFLite: edge/mobile deployment.
+
+Golden rule: always evaluate accuracy + latency together.`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install numpy',
+              'python benchmark.py'
+            ]
           },
           {
             id: 'lesson-16-3',
@@ -3538,7 +4896,45 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Use Apache Spark for large-scale batch predictions.',
             xpReward: 150,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Distinguish online inference (real-time) vs batch inference (scheduled/offline)',
+              'Design a batch inference job with partitioning and idempotent outputs',
+              'Understand Spark execution basics (dataframes, partitions, UDF risks)',
+              'Handle model distribution to executors and consistent preprocessing',
+              'Implement output versioning and rerun/backfill strategies'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'Spark Batch Prediction (Conceptual)',
+                code: `from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+spark = SparkSession.builder.appName('batch-inference').getOrCreate()
+df = spark.read.parquet('s3://bucket/features/day=2025-01-01/')
+
+# In practice: avoid heavy Python UDFs; prefer vectorized / native transforms.
+scored = df.withColumn('score', col('feature1') * 0.1 + col('feature2') * 0.2)
+
+scored.write.mode('overwrite').parquet('s3://bucket/predictions/day=2025-01-01/model=v3/')`
+              },
+              {
+                language: 'text',
+                title: 'Batch Inference DoD',
+                code: `- Input partitions are clearly defined (by day/hour)
+- Outputs are versioned (model=vX)
+- Job is idempotent (overwrite per partition)
+- Preprocessing is consistent with training
+- Backfill strategy is documented`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install pyspark',
+              'python -c "import pyspark; print(pyspark.__version__)"'
+            ]
           }
         ]
       },
@@ -3557,7 +4953,63 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Build feature stores with Feast for online/offline serving.',
             xpReward: 275,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain feature store fundamentals: offline store vs online store vs registry',
+              'Understand point-in-time correctness and how leakage happens',
+              'Define feature views, entities, and feature services (serving sets)',
+              'Materialize features for online serving and retrieve for batch/offline training',
+              'Design a feature lifecycle: compute, validate, version, serve, deprecate'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Feature Store Core Concepts',
+                code: `Entity: the join key (e.g., customer_id)
+Feature: a value computed from data (e.g., avg_spend_30d)
+Feature View: how a feature is produced + its schema + TTL
+Registry: metadata (schemas, versions)
+Offline Store: historical features for training/analysis
+Online Store: low-latency key-value features for serving`
+              },
+              {
+                language: 'python',
+                title: 'Feast (Conceptual) Feature Retrieval',
+                code: `# NOTE: illustrative example; depends on your Feast project setup.
+from datetime import datetime
+
+# Training data retrieval (historical)
+entity_rows = [
+    {"customer_id": 123, "event_timestamp": datetime(2025, 1, 1)},
+    {"customer_id": 456, "event_timestamp": datetime(2025, 1, 1)},
+]
+
+feature_refs = [
+    "customer_features:avg_spend_30d",
+    "customer_features:purchase_count_7d",
+]
+
+# store.get_historical_features(entity_df=..., features=...).to_df()
+print('Retrieve historical features for training')`
+              },
+              {
+                language: 'text',
+                title: 'Point-in-Time Correctness (Why It Exists)',
+                code: `If you train on features computed using future data, offline metrics look great
+but production fails.
+
+Point-in-time correctness ensures that for each training row, features only use
+data available up to the event_timestamp.`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install feast',
+              'feast version',
+              'feast init my_feature_repo',
+              'cd my_feature_repo && feast apply'
+            ]
           },
           {
             id: 'lesson-17-2',
@@ -3566,7 +5018,63 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Validate data with Great Expectations and TensorFlow Data Validation.',
             xpReward: 175,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain why data validation is an ML reliability requirement (not a nice-to-have)',
+              'Implement basic data expectations (nulls, ranges, uniqueness, schema)',
+              'Detect schema drift and distribution anomalies early',
+              'Integrate validation into pipelines as a gate (fail fast)',
+              'Design an incident response for data quality regressions'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'Great Expectations: Minimal Validation (Conceptual)',
+                code: `# NOTE: illustrative; GE usage depends on project scaffolding.
+import pandas as pd
+
+df = pd.read_csv('data.csv')
+
+# Examples of checks you should implement:
+assert df['customer_id'].notna().all()
+assert df['age'].between(0, 120).all()
+assert df['country'].notna().all()
+
+print('basic checks passed')`
+              },
+              {
+                language: 'text',
+                title: 'Validation Gates (What to Block)',
+                code: `Block pipeline when:
+- required columns missing
+- null rate exceeds threshold
+- value ranges out of bounds
+- categorical values outside allowed set
+- row counts drop unexpectedly
+
+Warn (but continue) when:
+- small distribution shifts within tolerance
+- minor increases in null rate below threshold`
+              },
+              {
+                language: 'text',
+                title: 'Data Quality Runbook (Minimum)',
+                code: `1) Identify impacted partitions/time window
+2) Compare schema + row counts to baseline
+3) Validate upstream source changes
+4) Pause training/serving pipeline if needed
+5) Backfill corrected data and rerun pipeline
+6) Document root cause + add new validation` 
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install pandas great-expectations',
+              'python -c "import great_expectations as ge; print(ge.__version__)"',
+              'great_expectations --version',
+              'python validate.py'
+            ]
           }
         ]
       },
@@ -3585,7 +5093,61 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Track predictions, latency, and implement A/B testing.',
             xpReward: 275,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Define monitoring layers: service SLOs, data quality, model quality, and business KPIs',
+              'Instrument inference endpoints with latency/error/throughput metrics',
+              'Design delayed-label evaluation and online/offline metric pipelines',
+              'Implement safe rollout strategies: shadow, canary, and A/B testing',
+              'Write an incident runbook for model regressions'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'What to Monitor (Minimum Set)',
+                code: `SERVICE: P50/P95 latency, error rate, throughput, saturation
+DATA: schema validation failures, null rates, range violations, missing keys
+MODEL: prediction distribution shifts, confidence, calibration, quality vs labels
+BUSINESS: conversion rate, fraud loss, churn, revenue impact
+
+Always include model_version and pipeline_version in logs/metrics.`
+              },
+              {
+                language: 'python',
+                title: 'Prometheus-Style Metrics (Conceptual Wrapper)',
+                code: `import time
+
+def timed_predict(predict_fn, payload):
+    start = time.time()
+    try:
+        result = predict_fn(payload)
+        # metrics: requests_total{status="success"} += 1
+        return result
+    except Exception:
+        # metrics: requests_total{status="error"} += 1
+        raise
+    finally:
+        latency = time.time() - start
+        # metrics: request_latency_seconds.observe(latency)
+        print('latency_seconds=', latency)`
+              },
+              {
+                language: 'text',
+                title: 'A/B Testing Checklist',
+                code: `- Define success metric and guardrails (latency/errors)
+- Randomize assignment deterministically (user_id hashing)
+- Ensure consistent feature computation
+- Run long enough for statistical power
+- Implement rollback rules and stop conditions`
+              }
+            ],
+            commands: [
+              'curl -s http://localhost:8000/health',
+              'curl -s -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"features\":[0.2,1.1,-0.4,0.0]}"',
+              'kubectl get pods -A | head -40',
+              'kubectl logs <pod-name> --tail=200',
+              'kubectl top pods -A | head -40'
+            ]
           },
           {
             id: 'lesson-18-2',
@@ -3594,7 +5156,60 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Detect drift with Evidently AI and Alibi Detect.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Define data drift vs concept drift vs label drift and why they matter',
+              'Choose drift metrics/tests appropriate to feature types (numeric vs categorical)',
+              'Build a baseline dataset and compare current windows against it',
+              'Set alert thresholds to balance sensitivity and alert fatigue',
+              'Create a response plan: investigate → validate → retrain/rollback'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Drift Types (Quick Definitions)',
+                code: `Data drift: feature distributions change
+Concept drift: relationship between features and labels changes
+Label drift: label distribution changes
+
+You can detect drift without labels, but you cannot confirm performance without labels.`
+              },
+              {
+                language: 'python',
+                title: 'Window Comparison Skeleton (Baseline vs Current)',
+                code: `import pandas as pd
+
+baseline = pd.read_csv('baseline.csv')
+current = pd.read_csv('current.csv')
+
+numeric_cols = [c for c in baseline.columns if baseline[c].dtype != 'object']
+
+summary = []
+for c in numeric_cols:
+    b_mean = baseline[c].mean()
+    c_mean = current[c].mean()
+    summary.append((c, float(b_mean), float(c_mean), float(c_mean - b_mean)))
+
+summary = sorted(summary, key=lambda x: abs(x[3]), reverse=True)
+print('top_mean_shifts:', summary[:10])`
+              },
+              {
+                language: 'text',
+                title: 'Drift Alert Playbook (Minimum)',
+                code: `1) Confirm data window and partitions
+2) Check schema/quality gates first
+3) Identify which features drifted most
+4) Validate upstream source changes
+5) Decide: retrain, rollback, or tolerate
+6) Postmortem + new tests/threshold tuning`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install pandas numpy',
+              'python drift_check.py'
+            ]
           },
           {
             id: 'lesson-18-3',
@@ -3603,7 +5218,60 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Interpret models with SHAP and LIME.',
             xpReward: 150,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain why explainability matters (debugging, trust, compliance)',
+              'Differentiate global vs local explanations',
+              'Use feature importance responsibly (and understand pitfalls)',
+              'Generate local explanations for individual predictions (conceptually)',
+              'Operationalize explanations: logging, audits, and user-facing transparency'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Global vs Local Explainability',
+                code: `Global: overall feature importance / model behavior
+Local: explanation for one prediction (why this user got this score)
+
+Use local explanations for debugging and audits.
+Use global explanations for model understanding and drift investigation.`
+              },
+              {
+                language: 'python',
+                title: 'Simple Permutation Importance (Framework-Agnostic)',
+                code: `import numpy as np
+from sklearn.metrics import accuracy_score
+
+def permutation_importance(model, X, y, n_repeats=5):
+    baseline = accuracy_score(y, model.predict(X))
+    importances = np.zeros(X.shape[1])
+    for j in range(X.shape[1]):
+        scores = []
+        for _ in range(n_repeats):
+            X_perm = X.copy()
+            np.random.shuffle(X_perm[:, j])
+            scores.append(accuracy_score(y, model.predict(X_perm)))
+        importances[j] = baseline - float(np.mean(scores))
+    return importances
+
+print('Permutation importance gives a rough signal of feature impact.')`
+              },
+              {
+                language: 'text',
+                title: 'Explainability DoD',
+                code: `- Explanations available for audit/debug
+- Feature list and schema documented
+- Known limitations documented (correlation, non-causality)
+- Sensitive features handled and reviewed
+- Explanation outputs are privacy-safe`
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install numpy scikit-learn',
+              'python explainability_demo.py'
+            ]
           }
         ]
       },
@@ -3622,7 +5290,65 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Schedule GPUs, multi-GPU training, and cost optimization.',
             xpReward: 250,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Understand GPU device plugin basics (NVIDIA device plugin and runtime class)',
+              'Request GPU resources correctly (limits/requests) and validate scheduling',
+              'Use node labeling/taints to control GPU workload placement',
+              'Identify and reduce GPU waste (right-sizing, batching, MIG, and quotas)',
+              'Troubleshoot common GPU scheduling/runtime failures'
+            ],
+            codeExamples: [
+              {
+                language: 'yaml',
+                title: 'GPU Pod Request (Basic)',
+                code:
+                  'apiVersion: v1\n'
+                  + 'kind: Pod\n'
+                  + 'metadata:\n'
+                  + '  name: gpu-smoke-test\n'
+                  + 'spec:\n'
+                  + '  restartPolicy: Never\n'
+                  + '  containers:\n'
+                  + '  - name: cuda\n'
+                  + '    image: nvidia/cuda:12.3.2-base-ubuntu22.04\n'
+                  + '    command: ["bash","-lc","nvidia-smi && echo OK"]\n'
+                  + '    resources:\n'
+                  + '      limits:\n'
+                  + '        nvidia.com/gpu: 1\n'
+              },
+              {
+                language: 'yaml',
+                title: 'GPU Node Selection (Label + Toleration)',
+                code:
+                  'spec:\n'
+                  + '  nodeSelector:\n'
+                  + '    accelerator: nvidia\n'
+                  + '  tolerations:\n'
+                  + '  - key: "gpu"\n'
+                  + '    operator: "Equal"\n'
+                  + '    value: "true"\n'
+                  + '    effect: "NoSchedule"\n'
+              },
+              {
+                language: 'bash',
+                title: 'Quick GPU Troubleshooting Checklist',
+                code:
+                  'kubectl get nodes -o wide\n'
+                  + 'kubectl describe node <gpu-node> | sed -n "1,220p"\n'
+                  + 'kubectl get pods -A -o wide | grep -i gpu\n'
+                  + 'kubectl describe pod gpu-smoke-test\n'
+                  + 'kubectl logs gpu-smoke-test\n'
+              }
+            ],
+            commands: [
+              'kubectl get nodes',
+              'kubectl describe node <gpu-node>',
+              'kubectl get pods -A -o wide',
+              'kubectl apply -f gpu-smoke-test.yaml',
+              'kubectl describe pod gpu-smoke-test',
+              'kubectl logs gpu-smoke-test'
+            ]
           },
           {
             id: 'lesson-19-2',
@@ -3631,7 +5357,65 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Use PyTorch DDP and Horovod for distributed training.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain the difference between data parallelism and model parallelism',
+              'Run a small PyTorch DDP job locally (single node multi-process)',
+              'Understand rendezvous/init methods and common failures (NCCL, networking)',
+              'Use distributed training in a cluster-friendly way (config, env, reproducibility)',
+              'Decide when distributed training is worth the added complexity'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'PyTorch DDP Skeleton (Conceptual)',
+                code:
+                  'import os\n'
+                  + 'import torch\n'
+                  + 'import torch.distributed as dist\n'
+                  + 'from torch.nn.parallel import DistributedDataParallel as DDP\n\n'
+                  + 'def main():\n'
+                  + '    dist.init_process_group(backend="nccl")\n'
+                  + '    local_rank = int(os.environ["LOCAL_RANK"])\n'
+                  + '    torch.cuda.set_device(local_rank)\n\n'
+                  + '    model = torch.nn.Linear(10, 1).cuda()\n'
+                  + '    ddp = DDP(model, device_ids=[local_rank])\n\n'
+                  + '    opt = torch.optim.Adam(ddp.parameters(), lr=1e-3)\n'
+                  + '    x = torch.randn(128, 10, device="cuda")\n'
+                  + '    y = torch.randn(128, 1, device="cuda")\n\n'
+                  + '    for _ in range(10):\n'
+                  + '        opt.zero_grad()\n'
+                  + '        loss = torch.nn.functional.mse_loss(ddp(x), y)\n'
+                  + '        loss.backward()\n'
+                  + '        opt.step()\n\n'
+                  + '    dist.destroy_process_group()\n\n'
+                  + 'if __name__ == "__main__":\n'
+                  + '    main()\n'
+              },
+              {
+                language: 'bash',
+                title: 'Launch DDP Locally',
+                code:
+                  'python3 -m venv .venv && source .venv/bin/activate\n'
+                  + 'pip install -U pip\n'
+                  + 'pip install torch\n'
+                  + 'torchrun --standalone --nproc_per_node=2 ddp_train.py\n'
+              },
+              {
+                language: 'bash',
+                title: 'Common Failure Signals',
+                code:
+                  'export NCCL_DEBUG=INFO\n'
+                  + '# Look for: timeout, connection refused, invalid usage\n'
+                  + 'torchrun --standalone --nproc_per_node=2 ddp_train.py\n'
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install torch',
+              'torchrun --standalone --nproc_per_node=2 ddp_train.py'
+            ]
           },
           {
             id: 'lesson-19-3',
@@ -3640,7 +5424,65 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Optimize with Optuna and Ray Tune.',
             xpReward: 150,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain the difference between grid search, random search, and Bayesian optimization',
+              'Run a small Optuna tuning experiment and track results',
+              'Define a safe search space and a reproducible objective function',
+              'Use early stopping/pruning to reduce compute cost',
+              'Avoid common tuning pitfalls (leakage, overfitting to validation, noisy metrics)'
+            ],
+            codeExamples: [
+              {
+                language: 'python',
+                title: 'Optuna Objective Skeleton',
+                code:
+                  'import optuna\n'
+                  + 'from sklearn.datasets import load_breast_cancer\n'
+                  + 'from sklearn.model_selection import cross_val_score\n'
+                  + 'from sklearn.ensemble import RandomForestClassifier\n\n'
+                  + 'X, y = load_breast_cancer(return_X_y=True)\n\n'
+                  + 'def objective(trial: optuna.Trial) -> float:\n'
+                  + '    n_estimators = trial.suggest_int("n_estimators", 50, 400)\n'
+                  + '    max_depth = trial.suggest_int("max_depth", 2, 20)\n'
+                  + '    clf = RandomForestClassifier(\n'
+                  + '        n_estimators=n_estimators,\n'
+                  + '        max_depth=max_depth,\n'
+                  + '        n_jobs=-1,\n'
+                  + '        random_state=42,\n'
+                  + '    )\n'
+                  + '    return cross_val_score(clf, X, y, cv=3, scoring="roc_auc").mean()\n\n'
+                  + 'study = optuna.create_study(direction="maximize")\n'
+                  + 'study.optimize(objective, n_trials=30)\n'
+                  + 'print("best", study.best_value, study.best_params)\n'
+              },
+              {
+                language: 'bash',
+                title: 'Run a Simple Tuning Experiment',
+                code:
+                  'python3 -m venv .venv && source .venv/bin/activate\n'
+                  + 'pip install -U pip\n'
+                  + 'pip install optuna scikit-learn\n'
+                  + 'python tune_optuna.py\n'
+              },
+              {
+                language: 'text',
+                title: 'Tuning Runbook (Checklist)',
+                code:
+                  '- Define metric + direction (maximize/minimize)\n'
+                  + '- Fix dataset splits and seeds\n'
+                  + '- Prevent leakage\n'
+                  + '- Add pruning/early stopping\n'
+                  + '- Track best params + artifacts\n'
+                  + '- Validate on a holdout set before shipping\n'
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install optuna scikit-learn',
+              'python tune_optuna.py'
+            ]
           }
         ],
         project: {
@@ -3702,7 +5544,66 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Design cloud-agnostic architectures and manage multi-cloud deployments.',
             xpReward: 275,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain common multi-cloud drivers (resiliency, compliance, vendor risk) and their costs',
+              'Design a portable deployment model (IaC + Kubernetes + GitOps) across clouds',
+              'Identify what must remain cloud-specific (identity, networking, managed services)',
+              'Plan disaster recovery across regions/clouds with clear RTO/RPO targets',
+              'Define an operating model (observability, security, and cost controls)'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Architecture Checklist (Multi-Cloud)',
+                code:
+                  '- Identity: SSO, workload identity, least privilege\n'
+                  + '- Networking: ingress/egress, DNS, private connectivity\n'
+                  + '- Platform: Kubernetes baseline, service mesh (optional), GitOps\n'
+                  + '- Data: replication strategy, consistency needs, DR plan\n'
+                  + '- Observability: logs/metrics/traces standardization\n'
+                  + '- Security: policy-as-code, secrets, vulnerability management\n'
+                  + '- Cost: tagging, budgets, rightsizing, showback/chargeback\n'
+              },
+              {
+                language: 'bash',
+                title: 'Portable Kubernetes Baseline Checks',
+                code:
+                  'kubectl cluster-info\n'
+                  + 'kubectl get nodes -o wide\n'
+                  + 'kubectl get ns\n'
+                  + 'kubectl get pods -A\n'
+              },
+              {
+                language: 'yaml',
+                title: 'Minimal App Manifest (Portable)',
+                code:
+                  'apiVersion: apps/v1\n'
+                  + 'kind: Deployment\n'
+                  + 'metadata:\n'
+                  + '  name: hello\n'
+                  + 'spec:\n'
+                  + '  replicas: 2\n'
+                  + '  selector:\n'
+                  + '    matchLabels: { app: hello }\n'
+                  + '  template:\n'
+                  + '    metadata:\n'
+                  + '      labels: { app: hello }\n'
+                  + '    spec:\n'
+                  + '      containers:\n'
+                  + '      - name: hello\n'
+                  + '        image: nginx:stable\n'
+                  + '        ports: [{ containerPort: 80 }]\n'
+              }
+            ],
+            commands: [
+              'kubectl cluster-info',
+              'kubectl get nodes -o wide',
+              'kubectl get pods -A',
+              'kubectl apply -f hello-deploy.yaml',
+              'kubectl rollout status deploy/hello',
+              'kubectl get svc,ingress -A'
+            ]
           },
           {
             id: 'lesson-20-2',
@@ -3711,7 +5612,63 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Test system resilience with Chaos Mesh experiments.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Explain the goal of chaos engineering (confidence through controlled experiments)',
+              'Define hypotheses and steady-state metrics (SLOs) before injecting failure',
+              'Run a safe experiment in Kubernetes (pod kill, network delay, CPU stress)',
+              'Establish safety controls (blast radius, timeouts, rollbacks, approvals)',
+              'Turn findings into concrete engineering work (runbooks, alerts, hardening)'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Experiment Template (Hypothesis-Driven)',
+                code:
+                  'Steady state:\n'
+                  + '- P95 latency < X ms\n'
+                  + '- Error rate < Y%\n'
+                  + '- Throughput >= Z req/s\n\n'
+                  + 'Hypothesis:\n'
+                  + '- If one pod is killed, traffic shifts and SLO holds\n\n'
+                  + 'Blast radius + stop conditions:\n'
+                  + '- Only namespace: <ns>\n'
+                  + '- Abort if error rate > Y% for 2 minutes\n'
+              },
+              {
+                language: 'yaml',
+                title: 'Chaos Mesh Pod Kill (Example)',
+                code:
+                  'apiVersion: chaos-mesh.org/v1alpha1\n'
+                  + 'kind: PodChaos\n'
+                  + 'metadata:\n'
+                  + '  name: kill-hello\n'
+                  + '  namespace: default\n'
+                  + 'spec:\n'
+                  + '  action: pod-kill\n'
+                  + '  mode: one\n'
+                  + '  selector:\n'
+                  + '    labelSelectors:\n'
+                  + '      app: hello\n'
+                  + '  duration: "60s"\n'
+              },
+              {
+                language: 'bash',
+                title: 'Observe During Experiment',
+                code:
+                  'kubectl get pods -l app=hello -w\n'
+                  + 'kubectl describe pod <pod>\n'
+                  + 'kubectl get events --sort-by=.metadata.creationTimestamp | tail -50\n'
+              }
+            ],
+            commands: [
+              'kubectl get crds | grep -i chaos',
+              'kubectl get pods -A | grep -i chaos',
+              'kubectl apply -f kill-hello.yaml',
+              'kubectl get podchaos -A',
+              'kubectl describe podchaos kill-hello',
+              'kubectl delete -f kill-hello.yaml'
+            ]
           }
         ]
       },
@@ -3730,7 +5687,36 @@ joblib.dump(model, 'model.joblib')`
             type: 'theory',
             description: 'Understand federated learning and privacy-preserving ML.',
             xpReward: 100,
-            hasTerminal: false
+            hasTerminal: false,
+            objectives: [
+              'Explain what federated learning is and when it is a good fit',
+              'Describe the federated learning lifecycle (clients, rounds, aggregation)',
+              'Understand privacy techniques (secure aggregation, differential privacy) at a high level',
+              'Identify operational challenges (heterogeneous devices, unreliable clients, non-IID data)',
+              'Define governance and threat model considerations'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Federated Learning Mental Model',
+                code:
+                  '1) Server selects clients\n'
+                  + '2) Clients train locally on private data\n'
+                  + '3) Clients send updates (not raw data)\n'
+                  + '4) Server aggregates updates (e.g., FedAvg)\n'
+                  + '5) Repeat rounds until convergence\n'
+              },
+              {
+                language: 'text',
+                title: 'Operational Checklist',
+                code:
+                  '- Client selection strategy\n'
+                  + '- Update size/bandwidth budgets\n'
+                  + '- Robust aggregation (outliers/poisoning)\n'
+                  + '- Privacy controls (DP / secure aggregation)\n'
+                  + '- Model/version rollout and rollback\n'
+              }
+            ]
           },
           {
             id: 'lesson-21-2',
@@ -3739,7 +5725,35 @@ joblib.dump(model, 'model.joblib')`
             type: 'theory',
             description: 'Deploy models to edge devices with model compression.',
             xpReward: 100,
-            hasTerminal: false
+            hasTerminal: false,
+            objectives: [
+              'Explain why edge ML exists (latency, privacy, bandwidth, offline operation)',
+              'Describe common compression techniques (quantization, pruning, distillation)',
+              'Understand edge constraints (CPU, memory, thermal, power, intermittent network)',
+              'Design deployment and update strategies (canary, staged rollout, rollback)',
+              'Define telemetry for edge models (performance, drift proxies, failures)'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Edge ML Constraints and Trade-offs',
+                code:
+                  '- Latency: local inference is fast\n'
+                  + '- Privacy: data stays on device\n'
+                  + '- Reliability: works offline\n'
+                  + '- Trade-off: limited compute + harder observability\n'
+              },
+              {
+                language: 'text',
+                title: 'Deployment Strategy (Staged)',
+                code:
+                  '1) Build and sign model artifact\n'
+                  + '2) Roll out to internal devices\n'
+                  + '3) Canary to small user cohort\n'
+                  + '4) Monitor crash rate + latency + KPI proxy\n'
+                  + '5) Expand or rollback\n'
+              }
+            ]
           },
           {
             id: 'lesson-21-3',
@@ -3748,7 +5762,52 @@ joblib.dump(model, 'model.joblib')`
             type: 'hands-on',
             description: 'Implement online learning, incremental training, and automated retraining.',
             xpReward: 200,
-            hasTerminal: true
+            hasTerminal: true,
+            objectives: [
+              'Distinguish online learning vs periodic retraining vs incremental training',
+              'Define triggers for retraining (drift, performance drop, schedule, data volume)',
+              'Build a safe retraining workflow with evaluation gates and approvals',
+              'Implement versioning for data, features, and model artifacts',
+              'Operate retraining with rollouts, monitoring, and rollback'
+            ],
+            codeExamples: [
+              {
+                language: 'text',
+                title: 'Retraining Trigger Decision Tree',
+                code:
+                  'IF data drift high AND KPI guardrails degrading -> retrain candidate\n'
+                  + 'IF new labeled data available on schedule -> retrain candidate\n'
+                  + 'IF model performance stable -> do nothing\n'
+                  + 'Always: evaluate + canary + rollback plan\n'
+              },
+              {
+                language: 'python',
+                title: 'Simple Incremental Training Loop (Conceptual)',
+                code:
+                  '"""Conceptual example: update model with new batches."""\n'
+                  + 'from sklearn.linear_model import SGDClassifier\n'
+                  + 'import numpy as np\n\n'
+                  + 'model = SGDClassifier(loss="log_loss", random_state=42)\n'
+                  + 'classes = np.array([0, 1])\n\n'
+                  + 'for X_batch, y_batch in stream_batches():\n'
+                  + '    model.partial_fit(X_batch, y_batch, classes=classes)\n'
+              },
+              {
+                language: 'bash',
+                title: 'Operational Run (Example Commands)',
+                code:
+                  'python3 -m venv .venv && source .venv/bin/activate\n'
+                  + 'pip install -U pip\n'
+                  + 'pip install scikit-learn numpy\n'
+                  + 'python retrain.py --input data/new_labels.csv --out models/model.pkl\n'
+              }
+            ],
+            commands: [
+              'python3 -m venv .venv && source .venv/bin/activate',
+              'pip install -U pip',
+              'pip install scikit-learn numpy',
+              'python retrain.py --help'
+            ]
           }
         ],
         project: {
@@ -3759,6 +5818,23 @@ joblib.dump(model, 'model.joblib')`
           description: 'Build an enterprise-grade multi-cloud DevOps platform.',
           xpReward: 1500,
           hasTerminal: true,
+          overview:
+            'You will design and implement a multi-cloud platform that standardizes how teams provision infrastructure, deploy services, observe systems, and recover from incidents.\n\n'
+            + 'The capstone emphasizes real-world constraints: secure identity, repeatable environments, measurable SLOs, and tested disaster recovery across regions and/or clouds.',
+          prerequisites: [
+            'Comfort with Kubernetes fundamentals (workloads, services, ingress)',
+            'Basic Terraform/IaC experience (state, modules, variables)',
+            'CI/CD and GitOps concepts (pipelines, promotion, rollback)',
+            'Monitoring basics (metrics, logs, tracing, alerting)'
+          ],
+          suggestedStack: [
+            'Kubernetes: EKS + GKE (or EKS + AKS) with a common baseline',
+            'IaC: Terraform (with remote state) + reusable modules',
+            'GitOps: Argo CD (or Flux) for environment promotion',
+            'Observability: Prometheus + Grafana (and optional Loki/Tempo)',
+            'Service Mesh (optional): Istio for traffic shaping and policy',
+            'Security: policy-as-code + secrets manager integration'
+          ],
           objectives: [
             'Multi-cloud Kubernetes (EKS, GKE, AKS)',
             'Service mesh across clouds (Istio)',
@@ -3769,6 +5845,51 @@ joblib.dump(model, 'model.joblib')`
             'Security and compliance',
             'GitOps deployment',
             'Self-service portals'
+          ],
+          milestones: [
+            'Milestone 1: Platform bootstrap — repo structure, Terraform state, and cluster baseline in Cloud A',
+            'Milestone 2: Second cloud — replicate baseline in Cloud B with minimal drift',
+            'Milestone 3: GitOps — Argo CD manages app environments with promotion + rollback',
+            'Milestone 4: Observability — unified dashboards and alert routing across clouds',
+            'Milestone 5: DR — automated failover/failback runbook and a tested DR exercise',
+            'Milestone 6: Cost + security — budgets/tags, least privilege, policy checks in CI'
+          ],
+          acceptanceCriteria: [
+            'A new service can be deployed to both clouds from Git via GitOps with a defined promotion flow',
+            'SLO dashboards exist (latency, error rate, saturation) with actionable alerts',
+            'A DR exercise is executed and documented with measured RTO/RPO outcomes',
+            'Terraform code is modular and reproducible (fresh install works from scratch)',
+            'Runbooks exist for the top 3 incident types (deploy rollback, cluster issue, dependency failure)'
+          ],
+          starterCommands: [
+            '# Repository and environment',
+            'git status',
+            'terraform -version',
+            'kubectl version --client',
+            '',
+            '# IaC workflow (example)',
+            'terraform init',
+            'terraform fmt -check',
+            'terraform validate',
+            'terraform plan',
+            '',
+            '# Kubernetes sanity',
+            'kubectl get nodes -o wide',
+            'kubectl get pods -A',
+            '',
+            '# GitOps (example)',
+            'kubectl get ns | grep -i argocd'
+          ],
+          incidentRunbooks: [
+            'Rollback a bad deployment (GitOps revert + health verification)',
+            'Investigate elevated error rate (dashboards → logs → traces → rollback)',
+            'Cluster degradation (node pressure, CNI issues, DNS, control-plane symptoms)'
+          ],
+          stretchGoals: [
+            'Add policy-as-code admission controls (e.g., OPA Gatekeeper/Kyverno)',
+            'Implement progressive delivery (canary) with automated analysis',
+            'Add a self-service template for onboarding a new service',
+            'Cross-cloud service mesh for traffic shifting and failover (advanced)'
           ],
           deliverables: [
             'Multi-cloud architecture',

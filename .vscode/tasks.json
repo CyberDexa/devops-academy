@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Verify capstone project markdown",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const Database=require('better-sqlite3'); const db=new Database('dev.db',{readonly:true}); const rows=db.prepare(\"SELECT slug,title,content FROM Lesson WHERE type='project' AND title LIKE '%CAPSTONE%' LIMIT 5\").all(); console.log(rows.map(r=>({slug:r.slug,title:r.title}))); const headings=['## 📌 Overview','## ✅ Prerequisites','## 🧰 Suggested Stack','## 🧭 Milestones','## ✅ Acceptance Criteria','## 🧪 Starter Commands','## 🧯 Incident Runbooks','## 🌟 Stretch Goals','## Deliverables']; for(const r of rows){ console.log('\\n'+r.slug+' -> '+r.title); for(const h of headings){ console.log(' ', (r.content||'').includes(h)?'OK ':'NO ', h); }}"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Verify capstone project markdown",
+			"type": "shell",
+			"command": "node -e \"const Database=require('better-sqlite3'); const db=new Database('dev.db',{readonly:true}); const rows=db.prepare(\\\"SELECT slug,title,content FROM Lesson WHERE type='project' AND title LIKE '%CAPSTONE%' LIMIT 5\\\").all(); console.log(rows.map(r=>({slug:r.slug,title:r.title}))); const headings=['## 📌 Overview','## ✅ Prerequisites','## 🧰 Suggested Stack','## 🧭 Milestones','## ✅ Acceptance Criteria','## 🧪 Starter Commands','## 🧯 Incident Runbooks','## 🌟 Stretch Goals','## Deliverables']; for(const r of rows){ console.log('\\\\n'+r.slug+' -> '+r.title); for(const h of headings){ console.log(' ', (r.content||'').includes(h)?'OK ':'NO ', h); }}\"",
+			"isBackground": false
+		},
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "npm run lint",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

@@ -10,13 +10,15 @@ import {
   BarChart3, 
   Settings,
   Flame,
-  Zap
+  Zap,
+  Rocket
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Learning Paths", href: "/tracks", icon: BookOpen },
+  { name: "Projects", href: "/projects", icon: Rocket },
   { name: "Labs", href: "/labs", icon: Terminal },
   { name: "Achievements", href: "/achievements", icon: Trophy },
   { name: "Progress", href: "/progress", icon: BarChart3 },

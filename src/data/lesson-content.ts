@@ -20,6 +20,868 @@ interface DetailedContent {
 
 // Detailed explanations for each lesson - using regular strings with escaped backticks
 export const lessonDetails: Record<string, DetailedContent> = {
+  'kubernetes-architecture': {
+    introduction:
+      "Kubernetes can feel confusing at first because it's not just a tool — it's a distributed system with its own control plane, APIs, and reconciliation loops. The goal of this lesson is to make Kubernetes feel predictable: you tell the cluster what you want (desired state), and Kubernetes continuously works to make reality match that desired state.\n\n" +
+      "By the end of this lesson you will understand what runs where (control plane vs nodes), how requests flow through the API server, and why Kubernetes is so resilient in production.",
+
+    whyItMatters:
+      "**Why Kubernetes Architecture Matters in Real DevOps Work:**\n\n" +
+      "1. **Troubleshooting**: When Pods won't schedule or crash, the fix is usually tied to a specific component (scheduler, kubelet, DNS, CNI).\n" +
+      "2. **Reliability**: Knowing the control plane helps you design for HA, upgrades, and disaster recovery.\n" +
+      "3. **Security**: RBAC, admission, and API access are core to preventing incidents.\n" +
+      "4. **Cost & performance**: Understanding the node side (kubelet/runtime) helps tune resources and capacity.\n\n" +
+      "Think of Kubernetes like an airport: the **control plane** is air traffic control (decides what should happen), and **nodes** are the runways/gates (where workloads actually run).",
+
+    concepts: [
+      {
+        title: 'The Desired State Model (Reconciliation)',
+        content:
+          "Kubernetes is a **reconciliation system**. You declare what you want (e.g., 3 replicas of an API), and controllers continuously compare desired state to actual state. If a Pod dies, Kubernetes creates a new one because the desired state still says \"3 replicas\".\n\n" +
+          "This is why Kubernetes is different from running a script once — it is always converging toward your target configuration."
+      },
+      {
+        title: 'Control Plane Components (What They Do)',
+        content:
+          "The control plane is responsible for cluster decisions and state:\n\n" +
+          "- **kube-apiserver**: front door for all requests (kubectl, controllers, operators).\n" +
+          "- **etcd**: the database that stores the cluster state (the source of truth).\n" +
+          "- **kube-scheduler**: chooses which node a Pod should run on.\n" +
+          "- **kube-controller-manager**: runs controllers (Deployment controller, Node controller, etc.).\n\n" +
+          "If you're debugging: scheduling problems often point to the scheduler; weird state inconsistencies can involve etcd/API server."
+      },
+      {
+        title: 'Node Components (Where Workloads Run)',
+        content:
+          "Each node runs the components needed to execute Pods:\n\n" +
+          "- **kubelet**: node agent that talks to the API server and ensures containers are running.\n" +
+          "- **container runtime**: containerd / CRI-O (actually runs containers).\n" +
+          "- **kube-proxy**: implements Service networking (iptables/ipvs rules).\n" +
+          "- **CNI plugin**: provides Pod networking (Calico/Cilium/Weave/etc.).\n\n" +
+          "When a Pod is \"Running\" but networking fails, the root cause is commonly CNI/kube-proxy/DNS."
+      },
+      {
+        title: 'Kubernetes API Objects (The "Vocabulary")',
+        content:
+          "Everything in Kubernetes is an API object: **Pods**, **Deployments**, **Services**, **ConfigMaps**, **Secrets**, **Ingress**, etc.\n\n" +
+          "Two practical rules:\n" +
+          "1) Prefer managing higher-level controllers (Deployments/StatefulSets) instead of raw Pods.\n" +
+          "2) Use labels consistently — labels are how Services and controllers select the right Pods."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Create a Local Cluster and Explore the Control Plane',
+        content:
+          "Run this sequence and narrate what you see:\n\n" +
+          "```bash\n" +
+          "minikube start --driver=docker\n" +
+          "kubectl cluster-info\n" +
+          "kubectl get nodes -o wide\n" +
+          "kubectl get pods -n kube-system\n" +
+          "kubectl get events -A | head -50\n" +
+          "```\n\n" +
+          "**What to notice:** kube-system contains the system Pods; events show scheduler decisions and failures."
+      },
+      {
+        title: 'Practice 2: Understand Namespaces and Contexts',
+        content:
+          "Namespaces are safety boundaries and organization. Contexts are how kubectl chooses a cluster/user/namespace.\n\n" +
+          "```bash\n" +
+          "kubectl create namespace dev\n" +
+          "kubectl config set-context --current --namespace=dev\n" +
+          "kubectl get pods\n" +
+          "kubectl get pods -n kube-system\n" +
+          "```\n\n" +
+          "If you ever \"lose\" your resources, you're often looking in the wrong namespace."
+      },
+      {
+        title: 'Practice 3: Use kubectl explain (Built-in Docs)',
+        content:
+          "kubectl can teach you the schema of any object:\n\n" +
+          "```bash\n" +
+          "kubectl explain deployment\n" +
+          "kubectl explain deployment.spec\n" +
+          "kubectl explain deployment.spec.template.spec.containers\n" +
+          "```"
+      }
+    ],
+
+    commonMistakes: [
+      "Treating Kubernetes like a one-time script (it continuously reconciles)",
+      "Editing a live Pod directly instead of the controller (Deployment/StatefulSet)",
+      "Forgetting namespaces (resources exist but you're looking elsewhere)",
+      "Ignoring events (they often tell you the real failure reason)",
+      "Assuming 'Running' means 'healthy' (you need readiness/liveness probes)"
+    ],
+
+    bestPractices: [
+      "Use Deployments/StatefulSets/DaemonSets — avoid standalone Pods in production",
+      "Standardize labels (app, component, environment, version)",
+      "Use RBAC least-privilege for cluster access",
+      "Always check events and describe output when debugging",
+      "Document your cluster add-ons (CNI, Ingress, DNS, storage driver)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Pods won't schedule**\n\n" +
+      "A deployment is stuck in Pending. A fast, architecture-informed checklist:\n\n" +
+      "```bash\n" +
+      "kubectl get pods\n" +
+      "kubectl describe pod <pod>\n" +
+      "kubectl get events --sort-by=.metadata.creationTimestamp | tail -50\n" +
+      "kubectl get nodes -o wide\n" +
+      "kubectl top nodes\n" +
+      "```\n\n" +
+      "If the scheduler can't find a node, you'll see messages like insufficient CPU/memory, taints, or missing node labels.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Kubernetes reconciles desired state continuously\n" +
+      "2. API server + etcd are the brain and memory of the cluster\n" +
+      "3. Scheduler places Pods; controllers keep state converging\n" +
+      "4. Nodes run kubelet/runtime and implement networking\n" +
+      "5. Events + describe are your primary debugging tools",
+
+    nextSteps:
+      "Next, you'll deploy real workloads with Deployments/Services, add probes, and learn scaling and rollout strategies."
+  },
+
+  'core-workloads-resources': {
+    introduction:
+      "In this lesson you'll learn the Kubernetes workload building blocks that power nearly every production platform: Pods, Deployments, ReplicaSets, Jobs, and the configuration primitives ConfigMaps and Secrets.\n\n" +
+      "The goal is not just to run a container — it's to run it **reliably**, **repeatably**, and **safely** with health checks, updates, and scaling.",
+
+    whyItMatters:
+      "**Why Core Workloads Matter:**\n\n" +
+      "- A Deployment gives you safe rollouts and self-healing.\n" +
+      "- Probes prevent sending traffic to broken pods.\n" +
+      "- ConfigMaps/Secrets decouple configuration from images.\n" +
+      "- Jobs/CronJobs cover migrations, batch processing, and scheduled tasks.\n\n" +
+      "Mastering these objects is the difference between \"it runs on my laptop\" and \"it survives production.\"",
+
+    concepts: [
+      {
+        title: 'Pods vs Controllers',
+        content:
+          "A **Pod** is the smallest scheduling unit (one or more containers that share network + volumes).\n" +
+          "A **controller** (Deployment/StatefulSet/DaemonSet) manages Pods for you.\n\n" +
+          "In production, you almost always create controllers — not naked Pods."
+      },
+      {
+        title: 'Deployments and Rollouts',
+        content:
+          "Deployments manage ReplicaSets and provide rolling updates and rollbacks.\n\n" +
+          "Important knobs:\n" +
+          "- replicas\n" +
+          "- rollingUpdate.maxSurge / maxUnavailable\n" +
+          "- revisionHistoryLimit\n" +
+          "- rollout pause/resume\n\n" +
+          "If you can rollback confidently, you can ship faster."
+      },
+      {
+        title: 'Probes (Readiness, Liveness, Startup)',
+        content:
+          "- **Readiness**: \"Should this pod receive traffic?\"\n" +
+          "- **Liveness**: \"Is this pod stuck and needs restart?\"\n" +
+          "- **Startup**: \"Allow long startups without killing the pod early.\"\n\n" +
+          "Common production pattern: use startupProbe for slow boot, readinessProbe for traffic gating, livenessProbe for deadlocks."
+      },
+      {
+        title: 'ConfigMaps and Secrets',
+        content:
+          "Use **ConfigMaps** for non-sensitive settings and **Secrets** for passwords/tokens/keys.\n\n" +
+          "You can mount them as files or inject as environment variables. Changing a ConfigMap doesn't automatically restart Pods unless you roll them."
+      },
+      {
+        title: 'Jobs and CronJobs',
+        content:
+          "Jobs are for one-time workloads like database migrations. CronJobs schedule Jobs (backups, reports, cleanups).\n\n" +
+          "Key settings:\n" +
+          "- backoffLimit\n" +
+          "- activeDeadlineSeconds\n" +
+          "- concurrencyPolicy\n" +
+          "- history limits"
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Deploy a Simple App with a Deployment + Service',
+        content:
+          "Goal: run 3 replicas, expose internally, and verify endpoints.\n\n" +
+          "```bash\n" +
+          "kubectl create deployment web --image=nginx --replicas=3\n" +
+          "kubectl expose deployment web --port=80 --target-port=80\n" +
+          "kubectl get deploy,rs,pods,svc -o wide\n" +
+          "kubectl port-forward svc/web 8080:80\n" +
+          "```\n\n" +
+          "Open http://localhost:8080 to confirm it serves traffic."
+      },
+      {
+        title: 'Practice 2: Rolling Update + Rollback',
+        content:
+          "```bash\n" +
+          "kubectl set image deployment/web nginx=nginx:1.27\n" +
+          "kubectl rollout status deployment/web\n" +
+          "kubectl rollout history deployment/web\n" +
+          "kubectl rollout undo deployment/web\n" +
+          "```\n\n" +
+          "You should be able to rollback within seconds — this is core production muscle memory."
+      },
+      {
+        title: 'Practice 3: Add Configuration via ConfigMap',
+        content:
+          "```bash\n" +
+          "kubectl create configmap app-config --from-literal=LOG_LEVEL=info\n" +
+          "kubectl get configmap app-config -o yaml\n" +
+          "```\n\n" +
+          "Then mount it or inject it in a Deployment spec. Validate it inside the container with `kubectl exec ... -- env`."
+      }
+    ],
+
+    commonMistakes: [
+      "Using livenessProbe to check external dependencies (causes restart storms)",
+      "Hardcoding config inside the image instead of ConfigMaps/Secrets",
+      "Updating an image without watching rollout status",
+      "Forgetting resource requests/limits (scheduler can't place pods or nodes get overcommitted)",
+      "Creating Pods directly and losing them on node restart"
+    ],
+
+    bestPractices: [
+      "Always set resource requests/limits for production workloads",
+      "Use readinessProbe to gate traffic, livenessProbe for deadlocks, startupProbe for slow boot",
+      "Rollout changes with `kubectl rollout status` open",
+      "Prefer immutable image tags (or pin by digest) for reproducibility",
+      "Keep config out of images; rotate secrets regularly"
+    ],
+
+    realWorldExample:
+      "**Scenario: Zero-downtime deploy**\n\n" +
+      "A safe deploy recipe:\n" +
+      "1) Ensure readinessProbe is correct\n" +
+      "2) Set maxUnavailable=0\n" +
+      "3) Roll out\n" +
+      "4) Monitor errors and rollback if needed\n\n" +
+      "This is how teams deploy frequently without fear.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Controllers manage Pods for reliability\n" +
+      "2. Probes prevent broken traffic and restart deadlocks\n" +
+      "3. ConfigMaps/Secrets decouple config from builds\n" +
+      "4. Rollouts + rollbacks are standard operating procedure\n" +
+      "5. Jobs/CronJobs cover batch + scheduled operations",
+
+    nextSteps:
+      "Next you'll learn Services, Ingress, DNS, and NetworkPolicies to connect workloads safely across the cluster."
+  },
+
+  'networking-service-discovery': {
+    introduction:
+      "Kubernetes networking is one of the biggest \"aha\" moments for learners: every Pod gets an IP, Services provide stable virtual IPs, and DNS makes service discovery feel natural.\n\n" +
+      "In this lesson you'll learn how traffic flows from the outside world to your Pods, how services route requests, and how to lock traffic down with NetworkPolicies.",
+
+    whyItMatters:
+      "**Why Networking & Service Discovery Matters:**\n\n" +
+      "- Services are the foundation of microservice communication.\n" +
+      "- Ingress controls how users reach your apps (routing + TLS).\n" +
+      "- NetworkPolicies are your primary tool to reduce blast radius in a breach.\n" +
+      "- DNS issues are among the most common cluster outages.\n\n" +
+      "If you can debug \"can't connect\" problems quickly, you become invaluable in production.",
+
+    concepts: [
+      {
+        title: 'Pod-to-Pod Networking and CNI',
+        content:
+          "Kubernetes relies on a CNI plugin so that Pods can reach each other (usually without NAT) across nodes.\n\n" +
+          "If pods cannot communicate, investigate CNI status and node networking first."
+      },
+      {
+        title: 'Services and Endpoints',
+        content:
+          "A Service selects Pods using labels and provides a stable name/IP. The actual backends are stored as Endpoints/EndpointSlices.\n\n" +
+          "If a Service routes to nothing, check:\n" +
+          "- selector labels match pods\n" +
+          "- pods are Ready\n" +
+          "- endpoints exist"
+      },
+      {
+        title: 'Ingress (Routing + TLS)',
+        content:
+          "Ingress is a set of rules; an Ingress Controller (like NGINX) enforces them.\n\n" +
+          "Ingress typically handles:\n" +
+          "- host/path routing\n" +
+          "- TLS termination\n" +
+          "- rewrites/timeouts/body limits"
+      },
+      {
+        title: 'CoreDNS and Service Discovery',
+        content:
+          "CoreDNS provides DNS records like `service.namespace.svc.cluster.local`.\n\n" +
+          "When DNS fails, apps appear " +
+          "\"down\" even if pods are healthy. Always verify DNS resolution during incidents."
+      },
+      {
+        title: 'NetworkPolicies (Default Deny)',
+        content:
+          "Without NetworkPolicies, most clusters allow all pod-to-pod traffic by default.\n\n" +
+          "A strong security baseline is **default deny** and then explicitly allow required flows (frontend→api, api→db, DNS)."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Verify Service Discovery via DNS',
+        content:
+          "Create a Service and resolve it from a debug pod:\n\n" +
+          "```bash\n" +
+          "kubectl create deployment api --image=nginx --replicas=2\n" +
+          "kubectl expose deployment api --port=80\n" +
+          "kubectl run dns-test --image=busybox --rm -it --restart=Never -- nslookup api\n" +
+          "```\n\n" +
+          "If nslookup fails, inspect CoreDNS pods in kube-system."
+      },
+      {
+        title: 'Practice 2: Debug a Service That Has No Endpoints',
+        content:
+          "Intentionally break labels and see what happens:\n\n" +
+          "```bash\n" +
+          "kubectl get pods --show-labels\n" +
+          "kubectl get endpoints api -o yaml\n" +
+          "kubectl describe svc api\n" +
+          "```\n\n" +
+          "Fix by aligning Service selectors with Pod labels."
+      },
+      {
+        title: 'Practice 3: Apply a Default-Deny NetworkPolicy',
+        content:
+          "Apply a deny policy and then allow only what you need. Watch traffic break and then recover after allow rules. This teaches real security boundaries."
+      }
+    ],
+
+    commonMistakes: [
+      "Creating an Ingress without installing an Ingress Controller",
+      "Service selector labels don't match pod labels (no endpoints)",
+      "Assuming DNS is always healthy; not checking CoreDNS",
+      "Blocking DNS with NetworkPolicies (apps suddenly can't resolve anything)",
+      "Using NodePort/LoadBalancer unnecessarily when ClusterIP + Ingress is enough"
+    ],
+
+    bestPractices: [
+      "Standardize labels and selectors across teams",
+      "Use a dedicated debug image (netshoot) for incident response",
+      "Adopt default-deny + allow-lists via NetworkPolicies",
+      "Treat Ingress as a controlled gateway (TLS, auth, rate limiting as needed)",
+      "Monitor CoreDNS and networking add-ons as first-class components"
+    ],
+
+    realWorldExample:
+      "**Scenario: 'Service is down' but pods are running**\n\n" +
+      "Common causes include: Service has zero endpoints, DNS failures, NetworkPolicy blocks, or Ingress misconfiguration. A fast debug loop is `describe svc`, `get endpoints`, `nslookup`, then `curl` from a netshoot pod.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. CNI provides pod networking\n" +
+      "2. Services give stable routing to pods\n" +
+      "3. Ingress + controller enables HTTP routing and TLS\n" +
+      "4. CoreDNS is critical for service discovery\n" +
+      "5. NetworkPolicies reduce blast radius",
+
+    nextSteps:
+      "Next you'll learn persistent storage (PV/PVC/StorageClasses) and how to run stateful apps safely."
+  },
+
+  'storage-persistence': {
+    introduction:
+      "Stateless workloads are easy: delete the Pod and nothing important is lost. Stateful workloads (databases, queues, file stores) require persistence and careful identity. Kubernetes supports this via PVs/PVCs/StorageClasses and StatefulSets.\n\n" +
+      "This lesson teaches how Kubernetes attaches durable storage to Pods, how dynamic provisioning works, and how to run databases safely.",
+
+    whyItMatters:
+      "**Why Storage Matters:**\n\n" +
+      "- Production apps depend on data; losing volumes means losing business.\n" +
+      "- StatefulSets provide stable identity and ordering.\n" +
+      "- StorageClasses let you choose performance/cost profiles (gp3 vs io2, SSD vs HDD).\n" +
+      "- Backups and snapshots are essential for recovery.\n\n" +
+      "Most outages are survivable — data loss is what becomes catastrophic.",
+
+    concepts: [
+      {
+        title: 'PV, PVC, and StorageClass',
+        content:
+          "- **PV**: the actual piece of storage (or abstraction)\n" +
+          "- **PVC**: a claim/request for storage by a workload\n" +
+          "- **StorageClass**: defines how volumes are provisioned (dynamic provisioning)\n\n" +
+          "Workloads should reference PVCs, not PVs. Kubernetes binds the PVC to a suitable PV automatically."
+      },
+      {
+        title: 'Access Modes and Volume Binding',
+        content:
+          "Access modes (RWO, ROX, RWX) determine how many nodes can mount a volume.\n\n" +
+          "`WaitForFirstConsumer` is important in cloud clusters: it provisions volumes in the same zone as the scheduled Pod."
+      },
+      {
+        title: 'StatefulSets (Stable Identity)',
+        content:
+          "StatefulSets give Pods stable names (postgres-0, postgres-1) and stable volume attachments via volumeClaimTemplates.\n\n" +
+          "They are designed for databases and clustered systems where identity matters."
+      },
+      {
+        title: 'Backups and Snapshots',
+        content:
+          "Snapshots are not a replacement for logical backups. A strong strategy usually includes:\n" +
+          "- regular logical backups (pg_dump)\n" +
+          "- volume snapshots for fast recovery\n" +
+          "- tested restore procedures"
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Create a PVC and Mount It into a Pod',
+        content:
+          "Goal: write a file, delete the Pod, recreate it, and confirm data persists (with proper storage).\n\n" +
+          "Start by creating a StorageClass (or use the default), then create a PVC and mount it."
+      },
+      {
+        title: 'Practice 2: Deploy a StatefulSet Database',
+        content:
+          "Deploy a PostgreSQL StatefulSet with a headless Service. Verify that each replica gets its own PVC and stable network identity."
+      },
+      {
+        title: 'Practice 3: Expand a PVC (If Supported)',
+        content:
+          "If `allowVolumeExpansion` is enabled on the StorageClass, patch the PVC size and observe the resizing process."
+      }
+    ],
+
+    commonMistakes: [
+      "Assuming emptyDir is persistent (it is deleted with the Pod)",
+      "Using the wrong access mode (RWX vs RWO) for the workload",
+      "Deleting a PVC without understanding reclaimPolicy",
+      "Running databases without backups and restore drills",
+      "Not using headless services for StatefulSets (breaks stable DNS)"
+    ],
+
+    bestPractices: [
+      "Use StatefulSets for identity-dependent apps (DBs, queues)",
+      "Choose StorageClasses based on workload needs (latency/IOPS/cost)",
+      "Enable encryption and backups for production volumes",
+      "Test restores regularly (the only backup that matters is one you can restore)",
+      "Keep PVCs and snapshots visible in dashboards and alerts"
+    ],
+
+    realWorldExample:
+      "**Scenario: Database pod rescheduled to another node**\n\n" +
+      "With a proper PVC, the same volume re-attaches when the pod moves (within the same zone constraints). Without it, your data disappears. This is why storage primitives are non-negotiable for production systems.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. PVCs are the contract between apps and storage\n" +
+      "2. StorageClasses enable dynamic provisioning\n" +
+      "3. StatefulSets provide stable identity + storage\n" +
+      "4. Snapshots help recovery; backups + restore drills ensure safety",
+
+    nextSteps:
+      "Next you'll apply these foundations to production-grade patterns: operators, observability, and security for stateful workloads."
+  },
+
+  'terraform-basics': {
+    introduction:
+      "Terraform is Infrastructure as Code (IaC): you describe infrastructure using configuration files, and Terraform creates/updates/destroys resources to match that description.\n\n" +
+      "This lesson focuses on the mental model: providers, resources, state, and the plan/apply workflow. When you understand these, Terraform becomes predictable instead of scary.",
+
+    whyItMatters:
+      "**Why Terraform Matters for DevOps:**\n\n" +
+      "1. **Repeatability**: build the same environment (dev/staging/prod) without manual clicks.\n" +
+      "2. **Safety**: `terraform plan` shows changes before they happen.\n" +
+      "3. **Auditability**: your infrastructure changes live in Git history.\n" +
+      "4. **Scale**: manage hundreds of resources reliably.\n" +
+      "5. **Multi-cloud**: the same workflow works across AWS/GCP/Azure and SaaS providers.\n\n" +
+      "If Kubernetes is how you run apps, Terraform is how you build the world those apps run in.",
+
+    concepts: [
+      {
+        title: 'Providers, Resources, and Data Sources',
+        content:
+          "- **Provider**: plugin Terraform uses to talk to an API (AWS, GitHub, Cloudflare).\n" +
+          "- **Resource**: something Terraform manages (VPC, subnet, bucket).\n" +
+          "- **Data source**: something Terraform reads (existing AMI, existing VPC).\n\n" +
+          "Rule of thumb: use resources to create/manage; use data sources to look up existing infrastructure."
+      },
+      {
+        title: 'The Workflow: init → plan → apply',
+        content:
+          "- `terraform init`: downloads providers and configures backend\n" +
+          "- `terraform plan`: calculates what will change (safe preview)\n" +
+          "- `terraform apply`: executes the plan\n\n" +
+          "In mature teams, **apply is gated** (review + approval) while plan runs automatically in CI."
+      },
+      {
+        title: 'Terraform State (Why It Exists)',
+        content:
+          "State is how Terraform knows what it created and how real resources map to configuration.\n\n" +
+          "Without state, Terraform can't safely compute diffs or update resources. That's why state must be protected, backed up, and usually stored remotely for teams."
+      },
+      {
+        title: 'Variables, Locals, Outputs',
+        content:
+          "- **Variables** make code reusable across environments\n" +
+          "- **Locals** help you avoid repetition and standardize naming/tags\n" +
+          "- **Outputs** expose useful values (VPC ID, endpoint URLs)\n\n" +
+          "A good Terraform codebase reads like a clear API: inputs in, infrastructure out."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Your First Plan (No Apply Yet)',
+        content:
+          "Create a small config with one provider and one resource, then run:\n\n" +
+          "```bash\n" +
+          "terraform init\n" +
+          "terraform fmt -recursive\n" +
+          "terraform validate\n" +
+          "terraform plan\n" +
+          "```\n\n" +
+          "The win here is understanding what Terraform *intends* to do before it touches anything."
+      },
+      {
+        title: 'Practice 2: Apply, Inspect, Destroy',
+        content:
+          "Once you are confident in the plan, apply it, then inspect state:\n\n" +
+          "```bash\n" +
+          "terraform apply\n" +
+          "terraform state list\n" +
+          "terraform show\n" +
+          "terraform destroy\n" +
+          "```\n\n" +
+          "Destroy is part of the learning loop — it proves your infrastructure is reproducible."
+      }
+    ],
+
+    commonMistakes: [
+      "Skipping `plan` and going straight to `apply`",
+      "Storing state locally while collaborating with others",
+      "Not pinning provider versions (surprise upgrades)",
+      "Hardcoding environment-specific values instead of variables",
+      "Treating state as disposable (it is critical system data)"
+    ],
+
+    bestPractices: [
+      "Always run `fmt` + `validate` before plan/apply",
+      "Pin provider versions and Terraform required_version",
+      "Use remote state + locking for any team usage",
+      "Prefer small modules and clear inputs/outputs",
+      "Review plans in PRs before applying"
+    ],
+
+    realWorldExample:
+      "**Scenario: Safe production change**\n\n" +
+      "A typical workflow: developer opens PR → CI runs fmt/validate/plan → reviewers inspect the plan output → after approval, a controlled job runs `terraform apply` using the same plan artifact.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Providers connect Terraform to APIs\n" +
+      "2. Plan/apply is a safe preview + execution workflow\n" +
+      "3. State is essential — protect it\n" +
+      "4. Variables/locals/outputs make code reusable and clean",
+
+    nextSteps:
+      "Next you'll learn modules and best practices so your Terraform stays maintainable as it grows."
+  },
+
+  'terraform-modules-best-practices': {
+    introduction:
+      "Modules are how Terraform scales from " +
+      "\"a few resources\" to \"a platform\". A module is a reusable package of Terraform code with inputs and outputs — like a function for infrastructure.\n\n" +
+      "In this lesson you'll learn how to design modules that are reusable, versionable, and easy for other engineers to consume.",
+
+    whyItMatters:
+      "**Why Modules + Best Practices Matter:**\n\n" +
+      "- Avoid duplication (copy/paste drift)\n" +
+      "- Enforce standards (tags, naming, logging, encryption)\n" +
+      "- Make changes safer (versioned modules)\n" +
+      "- Enable teams to move faster with shared building blocks\n\n" +
+      "Good modules turn infrastructure into a product.",
+
+    concepts: [
+      {
+        title: 'Module Interface: Inputs and Outputs',
+        content:
+          "A module should expose only what consumers need. If a module has 60 variables, it's often a sign the abstraction is unclear.\n\n" +
+          "Design guidance:\n" +
+          "- inputs: environment, name, tags, sizing\n" +
+          "- outputs: resource IDs, endpoints, security group IDs\n" +
+          "- internal details stay hidden"
+      },
+      {
+        title: 'Versioning and Reproducibility',
+        content:
+          "Always pin module versions (git tag or registry version).\n\n" +
+          "Unpinned modules are like running production on \"latest\" — eventually it will break when the upstream changes."
+      },
+      {
+        title: 'Folder Structure for Multi-Environment',
+        content:
+          "A common, maintainable structure is:\n" +
+          "- modules/ (reusable building blocks)\n" +
+          "- envs/dev, envs/prod (composition of modules)\n\n" +
+          "Keep environment-specific values in tfvars, not inside modules."
+      },
+      {
+        title: 'Quality Gates (Lint + Security)',
+        content:
+          "Terraform should be treated like application code:\n" +
+          "- format\n" +
+          "- validate\n" +
+          "- lint\n" +
+          "- security scan\n\n" +
+          "This prevents common mistakes (open security groups, unencrypted buckets, etc.)."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Build a Simple VPC Module',
+        content:
+          "Create modules/vpc with variables.tf, main.tf, outputs.tf.\n\n" +
+          "Then consume it from envs/dev and envs/prod using different CIDRs and tags."
+      },
+      {
+        title: 'Practice 2: Pin Module Versions',
+        content:
+          "If using Git-based modules, pin by tag (`ref=v1.2.3`) or commit SHA.\n\n" +
+          "Then update the tag deliberately and inspect the plan diff before applying."
+      },
+      {
+        title: 'Practice 3: Add Input Validation',
+        content:
+          "Add validation blocks to prevent invalid CIDRs, disallowed environments, or insecure defaults.\n\n" +
+          "This is how you embed guardrails into modules so others can’t shoot themselves in the foot."
+      }
+    ],
+
+    commonMistakes: [
+      "Putting environment-specific logic inside modules instead of env composition",
+      "Not pinning module versions",
+      "Designing mega-modules that do too much",
+      "No documentation for inputs/outputs",
+      "Skipping lint/security scans"
+    ],
+
+    bestPractices: [
+      "Keep modules small, focused, and composable",
+      "Pin versions for modules and providers",
+      "Use standard tags + naming via locals",
+      "Add validations and sane defaults",
+      "Automate fmt/validate/lint/security in CI"
+    ],
+
+    realWorldExample:
+      "**Scenario: Shared 'platform' modules**\n\n" +
+      "A platform team maintains a module for VPC + logging + encryption defaults. Application teams use it with 5 variables. Security improves while delivery speed increases.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Modules are reusable infrastructure building blocks\n" +
+      "2. Good interfaces are small and well-documented\n" +
+      "3. Version pinning is required for reproducibility\n" +
+      "4. CI quality gates prevent expensive mistakes",
+
+    nextSteps:
+      "Next you'll learn remote state, locking, and team collaboration patterns for Terraform at scale."
+  },
+
+  'state-management-collaboration': {
+    introduction:
+      "Terraform state is the most misunderstood part of Terraform — and the most important for teams. State is what allows Terraform to know what exists, what changed, and what needs to change next.\n\n" +
+      "This lesson teaches safe state patterns: remote state, locking, bootstrapping, and how teams avoid stepping on each other.",
+
+    whyItMatters:
+      "**Why State Management Matters:**\n\n" +
+      "- Prevents two engineers from applying conflicting changes\n" +
+      "- Enables collaboration and CI-driven plans\n" +
+      "- Protects you from data loss and configuration drift\n\n" +
+      "Treat state like production data: back it up, lock it, and control access.",
+
+    concepts: [
+      {
+        title: 'Remote State + Locking',
+        content:
+          "Remote state backends (S3, Terraform Cloud) store state centrally. Locking prevents concurrent applies.\n\n" +
+          "Without locking, two applies can race and corrupt or overwrite changes."
+      },
+      {
+        title: 'Environment Separation',
+        content:
+          "The safest pattern is separate state per environment (dev/prod) and often per stack (network/app/data).\n\n" +
+          "This reduces blast radius and keeps plans readable."
+      },
+      {
+        title: 'Imports and Refactors',
+        content:
+          "Import brings existing resources under Terraform control. Refactoring requires moving state addresses safely (state mv or moved blocks).\n\n" +
+          "Never delete state entries casually — understand the impact first."
+      },
+      {
+        title: 'Drift Detection',
+        content:
+          "Drift happens when someone changes resources outside Terraform. Use `plan` and refresh-only plans to detect it.\n\n" +
+          "In mature environments, direct console changes are either forbidden or heavily audited."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Configure a Remote Backend',
+        content:
+          "Set up a backend config and run `terraform init -reconfigure`.\n\n" +
+          "Then confirm the state is being written remotely and not locally."
+      },
+      {
+        title: 'Practice 2: Simulate Team Safety (Locking)',
+        content:
+          "In one terminal start an apply and keep it running. In another, try to apply again. You should see a lock error.\n\n" +
+          "This demonstrates why locking exists and prevents destructive races."
+      },
+      {
+        title: 'Practice 3: Import an Existing Resource',
+        content:
+          "Create or identify an existing resource, add a matching Terraform resource block, then import it.\n\n" +
+          "After import, run `plan` to ensure Terraform matches reality."
+      }
+    ],
+
+    commonMistakes: [
+      "Committing state files into Git",
+      "Using local state while multiple people apply",
+      "Forcing unlock without verifying the lock is truly stale",
+      "Mixing dev and prod into one state file",
+      "Manual console changes that cause drift"
+    ],
+
+    bestPractices: [
+      "Use remote state + locking for any shared environment",
+      "Use separate state per env/stack for smaller blast radius",
+      "Limit apply permissions; prefer plan-only in PRs",
+      "Enable versioning/encryption on state storage",
+      "Automate drift detection in CI"
+    ],
+
+    realWorldExample:
+      "**Scenario: Two engineers applied at the same time**\n\n" +
+      "Without locking, one apply overwrote part of the other's changes, causing an outage. With proper remote state + locking, the second apply would have been blocked and forced a review of changes first.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. State is critical to Terraform correctness\n" +
+      "2. Remote state + locking enables safe collaboration\n" +
+      "3. Separate environments and stacks to reduce blast radius\n" +
+      "4. Handle imports/refactors carefully",
+
+    nextSteps:
+      "Next you'll learn advanced Terraform patterns to reduce repetition and write safer, scalable configurations."
+  },
+
+  'advanced-terraform-patterns': {
+    introduction:
+      "Advanced Terraform is about writing code that stays readable as complexity grows. The core tools are expressions (`for`, `if`), iteration (`for_each`, `count`), dynamic blocks, and safety features like lifecycle rules and preconditions.\n\n" +
+      "This lesson will teach you how to model real infrastructure patterns without copy/paste and without creating fragile configurations.",
+
+    whyItMatters:
+      "**Why Advanced Patterns Matter:**\n\n" +
+      "- Reduce duplicated code (fewer bugs)\n" +
+      "- Make refactors safer (stable keys, moved blocks)\n" +
+      "- Add guardrails (preconditions, validations)\n" +
+      "- Improve rollout safety (lifecycle rules)\n\n" +
+      "These are the techniques used in production IaC repos.",
+
+    concepts: [
+      {
+        title: 'for_each vs count',
+        content:
+          "Use `for_each` when identity matters (named things like subnets). Use `count` when you truly just need N of something.\n\n" +
+          "`for_each` is usually more stable during changes because keys remain consistent even if you add/remove items."
+      },
+      {
+        title: 'Dynamic Blocks',
+        content:
+          "Dynamic blocks generate repeated nested configuration (like many ingress rules) without copy/paste.\n\n" +
+          "They’re powerful but can reduce readability — use them when repetition is significant."
+      },
+      {
+        title: 'Lifecycle and Safety',
+        content:
+          "Lifecycle rules can prevent outages:\n" +
+          "- `create_before_destroy` for replacements\n" +
+          "- `prevent_destroy` for critical resources\n" +
+          "- `ignore_changes` for fields managed elsewhere\n\n" +
+          "Use them intentionally: too much ignore_changes can hide drift."
+      },
+      {
+        title: 'Preconditions and Validations',
+        content:
+          "Preconditions stop dangerous plans early (e.g., prevent a prod stack from running with 1 instance).\n\n" +
+          "They turn tribal knowledge into enforced rules."
+      },
+      {
+        title: 'Refactoring Without Pain',
+        content:
+          "Use `moved` blocks or `terraform state mv` to rename resources safely.\n\n" +
+          "Avoid destroying/recreating resources just because you renamed something."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Replace count with for_each',
+        content:
+          "Take a resource created with count and convert it to for_each with stable keys. Then run plan and confirm Terraform does not want to recreate everything (or uses moved blocks to map addresses)."
+      },
+      {
+        title: 'Practice 2: Add Preconditions for Production Safety',
+        content:
+          "Add a precondition that enforces HA in prod. Run plan with invalid values and confirm Terraform fails early with a clear message."
+      },
+      {
+        title: 'Practice 3: Apply lifecycle rules responsibly',
+        content:
+          "Use prevent_destroy for a critical bucket and see how it blocks accidental deletions. Use create_before_destroy for a resource replacement to minimize downtime."
+      }
+    ],
+
+    commonMistakes: [
+      "Using count for keyed resources (causes address shifting and unexpected replacement)",
+      "Overusing dynamic blocks and making configs unreadable",
+      "Adding ignore_changes too broadly (hides real drift)",
+      "Using provisioners for everything (fragile; prefer cloud-init, user_data, or configuration tools)",
+      "Refactoring by delete/recreate instead of moved/state mv"
+    ],
+
+    bestPractices: [
+      "Prefer for_each for stable resource identity",
+      "Keep expressions readable; use locals for complex transformations",
+      "Use preconditions/validations for guardrails",
+      "Use lifecycle rules for safety — sparingly and intentionally",
+      "Refactor with moved blocks to preserve resources"
+    ],
+
+    realWorldExample:
+      "**Scenario: Refactor a shared module used by 20 repos**\n\n" +
+      "A safe refactor plan: release a new module version, add moved blocks for address changes, run plan in each repo, and upgrade gradually. This prevents destructive recreation across environments.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. for_each is usually safer than count\n" +
+      "2. Dynamic blocks reduce repetition\n" +
+      "3. Lifecycle + preconditions add safety\n" +
+      "4. moved blocks enable safe refactors",
+
+    nextSteps:
+      "Next, apply these patterns in real stacks and integrate Terraform into CI/CD with plan reviews and controlled applies."
+  },
   'linux-fundamentals': {
     introduction: 
       "Welcome to your first step in the DevOps journey! Linux is the backbone of modern infrastructure - " +
@@ -6388,6 +7250,103 @@ export const lessonDetails: Record<string, DetailedContent> = {
           "      - uses: actions/checkout@v4\n" +
           "      - run: npm publish\n" +
           "```"
+      },
+      {
+        title: 'Step 7: Hands-On Lab — Blue-Green Cutover Drill (Local Cluster)',
+        content:
+          "This lab makes blue-green *real*. You will deploy two versions side-by-side and switch traffic instantly.\n\n" +
+          "**Goal:** practice the cutover + rollback procedure like you would in production.\n\n" +
+          "### 7.1 Create a local cluster\n\n" +
+          "```bash\n" +
+          "# Option A: kind\n" +
+          "kind create cluster --name bg-lab\n" +
+          "kubectl cluster-info\n" +
+          "\n" +
+          "# Option B: minikube\n" +
+          "# minikube start --driver=docker\n" +
+          "```\n\n" +
+          "### 7.2 Deploy two versions\n\n" +
+          "Use two Deployments with a shared Service selector key (`version=blue|green`). You can use any simple HTTP image (nginx, hashicorp/http-echo, etc.).\n\n" +
+          "```bash\n" +
+          "kubectl create ns prod\n" +
+          "\n" +
+          "kubectl -n prod create deploy app-blue --image=nginx:1.27\n" +
+          "kubectl -n prod label deploy app-blue app=myapp version=blue\n" +
+          "kubectl -n prod expose deploy app-blue --name app --port 80 --target-port 80\n" +
+          "kubectl -n prod patch svc app -p '{\"spec\":{\"selector\":{\"app\":\"myapp\",\"version\":\"blue\"}}}'\n" +
+          "\n" +
+          "kubectl -n prod create deploy app-green --image=nginx:1.25\n" +
+          "kubectl -n prod label deploy app-green app=myapp version=green\n" +
+          "kubectl -n prod get deploy,svc,pods -o wide\n" +
+          "```\n\n" +
+          "### 7.3 Verify and cut over\n\n" +
+          "```bash\n" +
+          "kubectl -n prod port-forward svc/app 8080:80\n" +
+          "# In another terminal:\n" +
+          "curl -fsS http://localhost:8080 >/dev/null && echo OK\n" +
+          "\n" +
+          "# Cutover: blue → green\n" +
+          "kubectl -n prod patch svc app -p '{\"spec\":{\"selector\":{\"app\":\"myapp\",\"version\":\"green\"}}}'\n" +
+          "\n" +
+          "# Rollback: green → blue\n" +
+          "kubectl -n prod patch svc app -p '{\"spec\":{\"selector\":{\"app\":\"myapp\",\"version\":\"blue\"}}}'\n" +
+          "```\n\n" +
+          "**What you learned:** the mechanism is simple (selector switch), but the discipline is operational: verify, cut over, watch, rollback if needed." 
+      },
+      {
+        title: 'Step 8: Hands-On Lab — Canary With Gates (Manual, Then Automated)',
+        content:
+          "Canary is risk reduction through *progressive exposure*. Start manual, then automate gates.\n\n" +
+          "### 8.1 Manual canary with two Services\n\n" +
+          "In a real setup you would shift traffic at the ingress/load balancer. Locally, you can simulate by having two Services and testing each:\n\n" +
+          "```bash\n" +
+          "# Stable\n" +
+          "kubectl -n prod create deploy app-stable --image=nginx:1.27\n" +
+          "kubectl -n prod label deploy app-stable app=myapp track=stable\n" +
+          "kubectl -n prod expose deploy app-stable --name app-stable --port 80 --target-port 80\n" +
+          "\n" +
+          "# Canary\n" +
+          "kubectl -n prod create deploy app-canary --image=nginx:1.25\n" +
+          "kubectl -n prod label deploy app-canary app=myapp track=canary\n" +
+          "kubectl -n prod expose deploy app-canary --name app-canary --port 80 --target-port 80\n" +
+          "\n" +
+          "kubectl -n prod port-forward svc/app-stable 8081:80\n" +
+          "kubectl -n prod port-forward svc/app-canary 8082:80\n" +
+          "```\n\n" +
+          "Run smoke tests against both, and decide whether to promote (replace stable image) or rollback (delete canary).\n\n" +
+          "### 8.2 Gate promotion using measurable signals\n\n" +
+          "Define 2-3 signals that must stay healthy:\n" +
+          "- error rate\n" +
+          "- p95 latency\n" +
+          "- saturation (CPU/mem)\n\n" +
+          "Automated gates can be implemented with Argo Rollouts/Flagger (metrics provider) or CI jobs that query your observability backend.\n\n" +
+          "**Rule:** never do canary without a rollback path and clear thresholds." 
+      },
+      {
+        title: 'Step 9: Definition of Done — Deployment Strategy Checklist',
+        content:
+          "Use this checklist to ensure your advanced pipeline pattern is production-ready:\n\n" +
+          "- [ ] Rollout strategy chosen and documented (rolling/blue-green/canary)\n" +
+          "- [ ] Health endpoints exist (`/health`, `/ready`) and probes are configured\n" +
+          "- [ ] Smoke test script exists and can run in CI\n" +
+          "- [ ] Rollback procedure is documented and tested\n" +
+          "- [ ] Deployment is gated (approvals or automated metrics)\n" +
+          "- [ ] Observability dashboards/alerts cover errors + latency + saturation\n" +
+          "- [ ] Feature flags used for risky changes (deploy != release)\n" +
+          "- [ ] Timeouts exist for all waits (rollout, health checks, jobs)\n" +
+          "- [ ] Pipeline is cost-aware (caching, selective jobs, reasonable parallelism)\n"
+      },
+      {
+        title: 'Step 10: Lab Deliverables (What to Submit)',
+        content:
+          "- A repo folder containing:\n" +
+          "  - `k8s/` manifests for blue/green (or canary)\n" +
+          "  - a pipeline file (GitHub Actions/GitLab CI/Jenkinsfile)\n" +
+          "  - `scripts/smoke-test.sh`\n" +
+          "- A short README explaining:\n" +
+          "  - chosen strategy and why\n" +
+          "  - rollback steps\n" +
+          "  - what metrics gate promotion\n"
       }
     ],
 
@@ -9472,6 +10431,4462 @@ export const lessonDetails: Record<string, DetailedContent> = {
       "- **Terraform**: Infrastructure as Code for all clouds\n" +
       "- **FinOps**: Financial operations across clouds\n" +
       "- **Capstone**: Build a multi-cloud DevOps platform"
+  }
+  ,
+
+  'gitops-with-argocd': {
+    introduction:
+      "GitOps is a way of running operations from Git: your desired state lives in version control, and a controller continuously reconciles the real system to match it. With ArgoCD, Kubernetes deployments become predictable, auditable, and reversible — because the source of truth is the repository, not manual cluster changes.\n\n" +
+      "This lesson focuses on the operational workflow: how ArgoCD watches a repo, detects drift, syncs changes, and how teams structure repos to support dev/staging/prod safely.",
+
+    whyItMatters:
+      "**Why GitOps Matters in Production:**\n\n" +
+      "1. **Auditability**: every change is a commit (who/what/why).\n" +
+      "2. **Consistency**: clusters converge to the same declared state.\n" +
+      "3. **Speed with control**: fast rollouts with approvals and clear promotion.\n" +
+      "4. **Self-healing**: drift is detected and corrected automatically (when configured).\n" +
+      "5. **Separation of duties**: platform teams define guardrails, app teams ship changes safely.\n\n" +
+      "If CI is how you *build* software, GitOps is how you *run* it.",
+
+    concepts: [
+      {
+        title: 'GitOps Core Principles (Declarative + Reconciled)',
+        content:
+          "GitOps systems rely on four pillars:\n\n" +
+          "- **Declarative**: desired state expressed in YAML/Helm/Kustomize\n" +
+          "- **Versioned**: Git history is the audit log\n" +
+          "- **Pulled**: the cluster pulls desired state (no direct push access required)\n" +
+          "- **Reconciled**: a controller continuously makes reality match desired state\n\n" +
+          "This reduces 'configuration drift' — changes made by hand that aren't tracked anywhere."
+      },
+      {
+        title: 'ArgoCD Applications and Sync Policies',
+        content:
+          "An **Application** tells ArgoCD what to deploy (repo/path/revision) and where (cluster/namespace).\n\n" +
+          "Key sync behavior:\n" +
+          "- **Manual sync**: safer for early teams; changes require an explicit sync\n" +
+          "- **Automated sync**: ArgoCD applies changes automatically\n" +
+          "- **Prune**: remove resources deleted from Git\n" +
+          "- **Self-heal**: revert out-of-band changes in the cluster\n\n" +
+          "A common production posture: automated sync in lower envs, manual or approval-gated sync in production."
+      },
+      {
+        title: 'Repo Structure: Overlays and Promotion',
+        content:
+          "A practical multi-environment layout:\n\n" +
+          "```\n" +
+          "repo/\n" +
+          "  k8s/\n" +
+          "    base/\n" +
+          "    overlays/\n" +
+          "      dev/\n" +
+          "      staging/\n" +
+          "      prod/\n" +
+          "```\n\n" +
+          "Promotion becomes a Git operation: merge PR to promote from staging to prod. Your cluster just reconciles the change."
+      },
+      {
+        title: 'Guardrails with Projects, RBAC, and Policies',
+        content:
+          "In real teams, you must prevent apps from deploying anywhere or pulling from any repo. Use:\n\n" +
+          "- **AppProjects** to restrict source repos and destination namespaces\n" +
+          "- **RBAC** to limit who can sync or override\n" +
+          "- **Namespace + policy controls** (NetworkPolicy, admission, Pod Security)\n\n" +
+          "GitOps is powerful — guardrails keep it safe."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Install ArgoCD and Access the UI',
+        content:
+          "Install ArgoCD to a local cluster and port-forward the UI:\n\n" +
+          "```bash\n" +
+          "kubectl create namespace argocd\n" +
+          "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml\n" +
+          "kubectl -n argocd get pods\n" +
+          "kubectl -n argocd port-forward svc/argocd-server 8080:443\n" +
+          "```\n\n" +
+          "Goal: confirm ArgoCD is healthy and reachable before adding apps."
+      },
+      {
+        title: 'Practice 2: Create an Application and Sync',
+        content:
+          "Create an Application that points to your repo and deploys into a namespace:\n\n" +
+          "```bash\n" +
+          "argocd login localhost:8080 --insecure\n" +
+          "argocd app list\n" +
+          "argocd app sync <app-name>\n" +
+          "argocd app diff <app-name>\n" +
+          "```\n\n" +
+          "Then validate resources directly in the cluster with `kubectl get all -n <ns>`."
+      },
+      {
+        title: 'Practice 3: Simulate Drift and Observe Self-Heal',
+        content:
+          "Edit a live resource (out of band) and watch ArgoCD flag drift. Example: scale a deployment manually:\n\n" +
+          "```bash\n" +
+          "kubectl -n production scale deploy/api --replicas=1\n" +
+          "# ArgoCD should show OutOfSync if desired is different\n" +
+          "```\n\n" +
+          "If self-heal is enabled, ArgoCD will revert the manual change back to Git's desired state."
+      }
+    ],
+
+    commonMistakes: [
+      "Enabling prune/self-heal in production before you understand the impact",
+      "Letting ArgoCD deploy cluster-wide resources without Projects/guardrails",
+      "Mixing 'app config' and 'platform config' in the same path without ownership",
+      "Treating GitOps as a UI tool (the repo should be the source of truth)",
+      "Not separating environments (dev/staging/prod) cleanly"
+    ],
+
+    bestPractices: [
+      "Use overlays per environment and promote via PRs",
+      "Adopt AppProjects + RBAC early to prevent accidental blast radius",
+      "Prefer small, composable Applications (clear ownership)",
+      "Turn on pruning carefully; start in lower envs and document exceptions",
+      "Use `argocd app diff` and sync status as part of release verification"
+    ],
+
+    realWorldExample:
+      "**Scenario: A hotfix must be deployed safely**\n\n" +
+      "A team merges a hotfix PR into the production overlay. ArgoCD detects the new commit, shows a clean diff, then syncs (manually approved or automated based on policy). If something breaks, rollback is a Git revert.\n\n" +
+      "This workflow is fast *and* auditable: the PR, review, and commit history are the operational record.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. GitOps makes Git the source of truth for cluster state\n" +
+      "2. ArgoCD reconciles desired vs actual and exposes drift\n" +
+      "3. Sync policies (prune/self-heal) are powerful — enable with intent\n" +
+      "4. Repo structure + guardrails determine long-term maintainability",
+
+    nextSteps:
+      "Next, combine GitOps with progressive delivery (Argo Rollouts/Flagger) and add policy enforcement so deployments are both fast and safe."
+  },
+
+  'github-actions-advanced-features': {
+    introduction:
+      "Once you can build a basic CI workflow, the next step is making it fast, safe, and maintainable at scale. Advanced GitHub Actions features help you run the right jobs for the right changes, protect production deployments, and standardize workflows across many repositories.\n\n" +
+      "This lesson focuses on matrix builds, conditional execution, environments, secrets, and reusable workflows — the tools that turn a one-off pipeline into a reliable platform capability.",
+
+    whyItMatters:
+      "**Why Advanced GitHub Actions Features Matter:**\n\n" +
+      "1. **Speed**: matrices and caching reduce feedback time\n" +
+      "2. **Safety**: protected environments and approvals reduce production risk\n" +
+      "3. **Cost**: conditional execution avoids running unnecessary jobs\n" +
+      "4. **Consistency**: reusable workflows make standards easy to apply\n" +
+      "5. **Security**: better secrets handling prevents credential leaks\n\n" +
+      "A mature pipeline is not the one that *runs* — it’s the one that runs quickly, safely, and predictably.",
+
+    concepts: [
+      {
+        title: 'Matrix Builds (Test Across Variants)',
+        content:
+          "Matrix builds let you test across operating systems and versions in parallel.\n\n" +
+          "Use matrices when you support multiple Node/JDK versions or need OS coverage. Keep matrices small and focused — big matrices can become expensive."
+      },
+      {
+        title: 'Conditionals + Environments (Controlled Deployment)',
+        content:
+          "Conditionals (`if:`) allow you to deploy only from main, or only on tagged releases.\n\n" +
+          "GitHub **environments** provide protection: required reviewers, wait timers, and environment-scoped secrets. This is a clean way to gate production." 
+      },
+      {
+        title: 'Secrets and OIDC (Prefer Short-Lived Credentials)',
+        content:
+          "Static secrets work, but long-lived cloud keys are risky. Prefer OIDC where possible so your workflow exchanges a short-lived token with the cloud provider.\n\n" +
+          "Always apply least privilege: minimal permissions, minimal scope, minimal lifetime."
+      },
+      {
+        title: 'Reusable Workflows + Composite Actions (Standardization)',
+        content:
+          "Reusable workflows (`workflow_call`) let you centralize common pipelines (build/test/scan) and reuse them across repos.\n\n" +
+          "Composite actions package reusable steps (lint, setup, tool install) with consistent inputs/outputs."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Practice 1: Add a Matrix and Cache Dependencies',
+        content:
+          "Extend your workflow to test multiple Node versions and enable caching. Ensure each matrix job is independent and produces clear logs." 
+      },
+      {
+        title: 'Practice 2: Protect Production with Environments',
+        content:
+          "Create a `production` environment in GitHub, require approvals, and ensure the deploy job targets that environment so releases are gated." 
+      },
+      {
+        title: 'Practice 3: Create a Reusable Workflow',
+        content:
+          "Extract your build/test steps into a reusable workflow and call it from another repo or workflow file. The win is consistency and less copy/paste." 
+      }
+    ],
+
+    commonMistakes: [
+      "Building huge matrices that waste CI minutes",
+      "Using secrets in logs or passing them via plain environment output",
+      "Deploying from feature branches without safeguards",
+      "Copy/pasting workflows across repos and drifting over time",
+      "Not pinning action versions (surprise changes)"
+    ],
+
+    bestPractices: [
+      "Pin action versions (tags or SHAs) for stability",
+      "Use environments for production gating",
+      "Cache dependencies and avoid redundant installs",
+      "Use reusable workflows for org-wide standards",
+      "Adopt OIDC for cloud auth where available"
+    ],
+
+    realWorldExample:
+      "**Scenario: Standard CI for 30 repositories**\n\n" +
+      "A platform team publishes a reusable workflow (lint/test/build + security scan). Each service repo calls it with a few inputs. Updates happen in one place, and the org gains consistent CI behavior without manual synchronization.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Matrix builds increase coverage efficiently\n" +
+      "2. Environments + approvals protect production\n" +
+      "3. Prefer OIDC and least privilege for cloud access\n" +
+      "4. Reusable workflows reduce drift and copy/paste",
+
+    nextSteps:
+      "Next, connect these patterns to progressive delivery (canary/blue-green) and GitOps so releases are both fast and controlled."
+  },
+
+  'jenkins-pipelines-groovy': {
+    introduction:
+      "Jenkins is one of the most widely used CI/CD tools in the industry, especially in enterprises. Its power comes from pipelines defined as code (Jenkinsfiles) written in Groovy.\n\n" +
+      "This lesson teaches you how to write pipelines that are readable, debuggable, and secure — with clean stages, proper credentials handling, and reusable shared libraries.",
+
+    whyItMatters:
+      "**Why Jenkins Pipelines Still Matter:**\n\n" +
+      "1. **Legacy + enterprise reality**: many organizations still run critical workloads on Jenkins\n" +
+      "2. **Flexibility**: scripted pipelines handle complex workflows\n" +
+      "3. **Ecosystem**: plugins for SCM, secrets, artifacts, notifications\n" +
+      "4. **Control**: self-hosted runners and networking inside private environments\n\n" +
+      "If you can read and write Jenkinsfiles confidently, you can contribute immediately in many teams.",
+
+    concepts: [
+      {
+        title: 'Declarative vs Scripted Pipelines',
+        content:
+          "- **Declarative** pipelines are opinionated and easier to standardize (stages, post conditions, options).\n" +
+          "- **Scripted** pipelines are more flexible but easier to turn into unreadable logic.\n\n" +
+          "For most teams: start with declarative and introduce scripted blocks only when necessary."
+      },
+      {
+        title: 'Agents, Stages, and Artifacts',
+        content:
+          "Pipelines run on **agents** (build nodes). Stages give structure and visibility.\n\n" +
+          "Artifacts (build outputs) should be archived or published to a repository (Nexus/Artifactory/S3).\n" +
+          "A good pipeline makes it obvious where a failure happened and how to reproduce it locally."
+      },
+      {
+        title: 'Credentials and Secret Hygiene',
+        content:
+          "Never hardcode secrets in Jenkinsfiles. Use Jenkins Credentials + bindings, and avoid echoing secrets.\n\n" +
+          "Secure pattern: inject credentials only for the stage that needs them, and keep logs clean."
+      },
+      {
+        title: 'Shared Libraries (Reusability)',
+        content:
+          "Shared libraries prevent copy/pasted Jenkinsfiles across repos. They let you define approved steps (build, test, scan, deploy) as reusable functions.\n\n" +
+          "This is how mature Jenkins shops scale: centralized pipeline logic with versioning."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Run Jenkins Locally (Persistent) + First Pipeline Job',
+        content:
+          "Run Jenkins locally using Docker with a persistent volume so your configuration survives restarts:\n\n" +
+          "```bash\n" +
+          "docker volume create jenkins_home\n" +
+          "docker run --name jenkins-lab \\\n" +
+          "  -p 8081:8080 -p 50000:50000 \\\n" +
+          "  -v jenkins_home:/var/jenkins_home \\\n" +
+          "  jenkins/jenkins:lts\n" +
+          "\n" +
+          "# Get the initial admin password\n" +
+          "docker exec -it jenkins-lab cat /var/jenkins_home/secrets/initialAdminPassword\n" +
+          "```\n\n" +
+          "In the UI (http://localhost:8081):\n\n" +
+          "- Install suggested plugins\n" +
+          "- Create an admin user\n" +
+          "- Create a **Pipeline** job (for a single Jenkinsfile) or **Multibranch Pipeline** (recommended for modern repos)\n\n" +
+          "Success criteria:\n\n" +
+          "- Jenkins is reachable\n" +
+          "- You can create a job and run a build\n" +
+          "- You can see stage output in Blue Ocean (optional) or the classic UI"
+      },
+      {
+        title: 'Lab 2: Create a Clean Declarative Jenkinsfile (Fail Fast + Timeouts)',
+        content:
+          "Add a `Jenkinsfile` to a repo and start with a readable declarative pipeline. The goal is not clever Groovy — it is **predictable execution**:\n\n" +
+          "```groovy\n" +
+          "pipeline {\n" +
+          "  agent any\n" +
+          "\n" +
+          "  options {\n" +
+          "    timestamps()\n" +
+          "    disableConcurrentBuilds()\n" +
+          "    buildDiscarder(logRotator(numToKeepStr: '20'))\n" +
+          "    timeout(time: 20, unit: 'MINUTES')\n" +
+          "  }\n" +
+          "\n" +
+          "  stages {\n" +
+          "    stage('Checkout') {\n" +
+          "      steps { checkout scm }\n" +
+          "    }\n" +
+          "\n" +
+          "    stage('Build') {\n" +
+          "      steps {\n" +
+          "        sh 'echo build here'\n" +
+          "      }\n" +
+          "    }\n" +
+          "\n" +
+          "    stage('Test') {\n" +
+          "      steps {\n" +
+          "        sh 'echo test here'\n" +
+          "      }\n" +
+          "      post {\n" +
+          "        always { echo 'Collect test results here' }\n" +
+          "      }\n" +
+          "    }\n" +
+          "  }\n" +
+          "\n" +
+          "  post {\n" +
+          "    success { echo 'Build succeeded' }\n" +
+          "    failure { echo 'Build failed' }\n" +
+          "    always  { cleanWs() }\n" +
+          "  }\n" +
+          "}\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- Each stage does one job\n" +
+          "- The pipeline has a global timeout\n" +
+          "- Concurrent builds are disabled unless explicitly required\n" +
+          "- Workspace is cleaned in `post { always { ... } }`"
+      },
+      {
+        title: 'Lab 3: Parallelism + Artifacts + Reports (Make Output Useful)',
+        content:
+          "Add structure so developers can answer: *what failed and where is the evidence?*\n\n" +
+          "Try these upgrades:\n\n" +
+          "1) Run checks in parallel (lint + unit tests + security scan)\n" +
+          "2) Archive build outputs\n" +
+          "3) Publish test reports\n\n" +
+          "Example pattern:\n\n" +
+          "```groovy\n" +
+          "stage('Checks') {\n" +
+          "  parallel(\n" +
+          "    lint: { sh 'echo lint' },\n" +
+          "    unit: { sh 'echo unit tests' },\n" +
+          "    scan: { sh 'echo scan' }\n" +
+          "  )\n" +
+          "}\n" +
+          "\n" +
+          "stage('Package') {\n" +
+          "  steps {\n" +
+          "    sh 'mkdir -p dist && echo artifact > dist/app.txt'\n" +
+          "    archiveArtifacts artifacts: 'dist/**', fingerprint: true\n" +
+          "  }\n" +
+          "}\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- Parallel branches have clear names\n" +
+          "- Artifacts are archived (or published to an artifact repo)\n" +
+          "- The build page contains enough evidence to debug without re-running"
+      },
+      {
+        title: 'Lab 4: Add Credentials Safely (Registry Login / Cloud Auth)',
+        content:
+          "Store credentials in Jenkins and bind them in a single stage:\n\n" +
+          "```groovy\n" +
+          "withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {\n" +
+          "  sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'\n" +
+          "}\n" +
+          "```\n\n" +
+          "Hard rules:\n\n" +
+          "- No secrets in Git\n" +
+          "- No secrets in logs\n" +
+          "- Limit credential scope (inject only in the stage that needs it)\n\n" +
+          "Verification:\n\n" +
+          "- You can rotate the credential in Jenkins without changing the repo\n" +
+          "- A failed build does not reveal secrets in the console"
+      },
+      {
+        title: 'Lab 5: Build + Tag + Push a Docker Image (Repeatable Tagging)',
+        content:
+          "Add a versioning strategy that makes rollbacks easy. A simple pattern is: `git-sha` + `build-number`.\n\n" +
+          "Example environment and build steps:\n\n" +
+          "```groovy\n" +
+          "environment {\n" +
+          "  IMAGE = 'your-org/your-app'\n" +
+          "  TAG   = \"${env.BUILD_NUMBER}-${env.GIT_COMMIT?.take(7)}\"\n" +
+          "}\n" +
+          "\n" +
+          "stage('Docker Build') {\n" +
+          "  steps {\n" +
+          "    sh 'docker build -t ' + IMAGE + ':' + TAG + ' .'\n" +
+          "  }\n" +
+          "}\n" +
+          "\n" +
+          "stage('Docker Push') {\n" +
+          "  steps {\n" +
+          "    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {\n" +
+          "      sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'\n" +
+          "      sh 'docker push ' + IMAGE + ':' + TAG\n" +
+          "    }\n" +
+          "  }\n" +
+          "}\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- Image tags are unique per build\n" +
+          "- You can identify the commit from the tag\n" +
+          "- Push only happens after tests succeed"
+      },
+      {
+        title: 'Lab 6: Deploy to Kubernetes With a Rollout Gate (Smoke + Rollback)',
+        content:
+          "This lab simulates a real deploy stage: apply manifests, wait for readiness, run a smoke test, and rollback on failure.\n\n" +
+          "Store a kubeconfig as a Jenkins **Secret file** credential (example id: `kubeconfig-lab`) and then use it only for the deploy stage:\n\n" +
+          "```groovy\n" +
+          "stage('Deploy') {\n" +
+          "  steps {\n" +
+          "    withCredentials([file(credentialsId: 'kubeconfig-lab', variable: 'KUBECONFIG')]) {\n" +
+          "      sh 'kubectl apply -f k8s/'\n" +
+          "      sh 'kubectl rollout status deploy/your-app -n default --timeout=120s'\n" +
+          "      sh 'kubectl get pods -n default'\n" +
+          "    }\n" +
+          "  }\n" +
+          "}\n" +
+          "```\n\n" +
+          "Add a smoke test step (for example via `kubectl port-forward` + `curl`) and fail the stage if it returns non-200.\n\n" +
+          "Rollback drill:\n\n" +
+          "- Intentionally deploy a broken version\n" +
+          "- Confirm the gate fails\n" +
+          "- Run `kubectl rollout undo` as part of an automated remediation (or a manual approval path)"
+      },
+      {
+        title: 'Lab 7: Shared Library Mini-Lab (Stop Copy/Paste Jenkinsfiles)',
+        content:
+          "Goal: move common steps into a shared library so multiple repos reuse approved pipeline logic.\n\n" +
+          "1) Create a new repo (example): `jenkins-shared-lib`\n" +
+          "2) Add a function under `vars/`:\n\n" +
+          "```groovy\n" +
+          "// vars/dockerBuildPush.groovy\n" +
+          "def call(Map cfg = [:]) {\n" +
+          "  sh \"docker build -t ${cfg.image}:${cfg.tag} .\"\n" +
+          "  sh \"docker push ${cfg.image}:${cfg.tag}\"\n" +
+          "}\n" +
+          "```\n\n" +
+          "3) Configure Jenkins: Manage Jenkins → System → Global Pipeline Libraries\n" +
+          "4) Use it from your Jenkinsfile:\n\n" +
+          "```groovy\n" +
+          "@Library('jenkins-shared-lib') _\n" +
+          "\n" +
+          "stage('Build + Push') {\n" +
+          "  steps {\n" +
+          "    dockerBuildPush(image: 'your-org/your-app', tag: env.BUILD_NUMBER)\n" +
+          "  }\n" +
+          "}\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- Library changes are versioned\n" +
+          "- Jenkinsfiles become shorter and more readable\n" +
+          "- Sensitive logic (auth, deploy rules) can be governed centrally"
+      },
+      {
+        title: 'Lab 8: Definition of Done (Jenkins Pipeline Checklist)',
+        content:
+          "Use this checklist before calling a Jenkins pipeline production-ready:\n\n" +
+          "- Stages are small and named by intent (Checkout/Build/Test/Package/Deploy)\n" +
+          "- Global timeouts exist (and stage-level timeouts where needed)\n" +
+          "- Concurrency rules are explicit (`disableConcurrentBuilds` or justified concurrency)\n" +
+          "- Secrets are never printed; credentials are stage-scoped\n" +
+          "- Artifacts and reports are retained (archive + fingerprint, or publish externally)\n" +
+          "- Deploy has a gate (`rollout status`, smoke tests, and a rollback plan)\n" +
+          "- Logs are readable (timestamps; minimal noise; clear errors)\n" +
+          "- Flaky steps are fixed, not retried forever"
+      },
+      {
+        title: 'Lab 9: Deliverables (What to Submit)',
+        content:
+          "Create a repo (or folder) containing:\n\n" +
+          "- `Jenkinsfile` with: options, clean stages, parallel checks, and post actions\n" +
+          "- A small `k8s/` folder (even a minimal Deployment + Service)\n" +
+          "- A `README.md` that documents:\n" +
+          "  - How to run the pipeline\n" +
+          "  - What credentials must exist in Jenkins\n" +
+          "  - How rollback is performed\n" +
+          "- Evidence: console output screenshots or pasted logs showing each stage ran\n\n" +
+          "If you build a shared library: include the `vars/` function and show it used by the Jenkinsfile."
+      }
+    ],
+
+    commonMistakes: [
+      "Putting complex logic directly in Jenkinsfiles instead of shared libraries",
+      "Leaking secrets via `echo` or verbose command output",
+      "Not pinning tool versions (Node/JDK/Maven) leading to flaky builds",
+      "Using one giant stage that makes failures hard to localize",
+      "Not cleaning workspace or caching dependencies properly"
+    ],
+
+    bestPractices: [
+      "Keep pipelines small and stage-based; fail fast",
+      "Use shared libraries for reuse and governance",
+      "Bind credentials only when needed and keep logs clean",
+      "Archive artifacts and publish to artifact repositories",
+      "Prefer multibranch pipelines with PR checks for modern workflows"
+    ],
+
+    realWorldExample:
+      "**Scenario: A regulated environment with private networking**\n\n" +
+      "A company runs Jenkins inside a restricted network with internal registries and artifact repositories. Pipelines build images, run security scans, publish artifacts, and deploy to Kubernetes — all without exposing infrastructure to public CI providers.\n\n" +
+      "Jenkins remains a practical choice when you need full control of build agents, networking, and compliance constraints.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Jenkinsfiles are pipelines-as-code\n" +
+      "2. Declarative pipelines are easiest to standardize\n" +
+      "3. Credentials must be handled via bindings, not hardcoded\n" +
+      "4. Shared libraries are the key to scaling Jenkins",
+
+    nextSteps:
+      "Next, connect Jenkins to GitHub/GitLab webhooks, add build caching, incorporate security scanning, and integrate GitOps for deployment."
+  },
+
+  'microservices-patterns': {
+    introduction:
+      "Microservices are not about splitting code into many repos — they are about creating **clear ownership boundaries** so teams can ship safely and independently.\n\n" +
+      "In this lesson you will learn the core architectural patterns behind successful microservices programs: service boundaries, API gateways/BFF, event-driven workflows, and how service mesh fits in (and where it doesn’t).",
+
+    whyItMatters:
+      "**Why this matters in real teams:**\n\n" +
+      "1. **Independent deployments**: smaller blast radius and faster iteration\n" +
+      "2. **Clear ownership**: teams know what they own and how they are measured\n" +
+      "3. **Resilience**: failures can be isolated instead of cascading\n" +
+      "4. **Scalability**: scale the hot path without scaling everything\n\n" +
+      "The trade-off is complexity: networking, observability, and consistency become engineering work. You must earn microservices with good practices.",
+
+    concepts: [
+      {
+        title: 'Service Boundaries and Data Ownership',
+        content:
+          "A microservice should own a cohesive business capability and its **data**. Sharing a database across services is the fastest way to re-create a distributed monolith.\n\n" +
+          "Good boundaries often come from **bounded contexts** (DDD): each service has its own language, rules, and lifecycle."
+      },
+      {
+        title: 'API Gateway and BFF',
+        content:
+          "An **API Gateway** is the external entry point that can centralize routing, auth, rate limiting, and request shaping.\n\n" +
+          "A **Backend-for-Frontend (BFF)** is a gateway tailored to a single client (web, mobile) to avoid over-fetching and reduce client complexity."
+      },
+      {
+        title: 'Event-Driven Architecture and Eventual Consistency',
+        content:
+          "Events reduce coupling between services and help smooth traffic spikes. The cost is **eventual consistency**: different services converge to the correct state over time.\n\n" +
+          "Patterns like **Outbox** help publish events safely without losing messages when a transaction commits."
+      },
+      {
+        title: 'Service Mesh (What It Solves)',
+        content:
+          "A service mesh typically provides: mTLS, traffic policy (timeouts/retries), and telemetry (traces/metrics).\n\n" +
+          "It does *not* fix poor service boundaries, missing runbooks, or unclear ownership. Treat it as an infrastructure accelerator, not an architecture replacement."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Draw Boundaries (From One Domain to Services)',
+        content:
+          "Pick a simple domain (e-commerce works well). Write down 5–8 user actions (browse catalog, add to cart, checkout, pay, view orders).\n\n" +
+          "Then define:\n\n" +
+          "- Candidate services (Catalog, Cart, Orders, Payments)\n" +
+          "- Each service’s **owned data**\n" +
+          "- Public APIs vs emitted events\n\n" +
+          "Checklist:\n\n" +
+          "- No service requires direct DB access to another service\n" +
+          "- Each service has a clear owner and SLA/SLO expectations\n" +
+          "- You can describe how the system behaves when one service is down"
+      },
+      {
+        title: 'Lab 2: Create an API Surface (Gateway → Services)',
+        content:
+          "Create an API contract for three flows:\n\n" +
+          "- `GET /catalog/products/{id}`\n" +
+          "- `POST /cart/items`\n" +
+          "- `POST /orders`\n\n" +
+          "Now decide what is gateway responsibility vs service responsibility:\n\n" +
+          "- Auth and rate limits (gateway)\n" +
+          "- Validation and business rules (service)\n" +
+          "- Aggregation for client convenience (BFF or gateway)\n\n" +
+          "If you are using Kubernetes, model it as Ingress routing to different services." 
+      },
+      {
+        title: 'Lab 3: Event-Driven Workflow Sketch (OrderCreated)',
+        content:
+          "Write down an event flow for checkout:\n\n" +
+          "1) Orders emits `OrderCreated`\n" +
+          "2) Payments consumes it and emits `PaymentSucceeded` or `PaymentFailed`\n" +
+          "3) Inventory consumes it and emits `StockReserved` or `StockRejected`\n\n" +
+          "Then define how you handle failures:\n\n" +
+          "- Compensation action (undo) vs retry vs manual intervention\n" +
+          "- Idempotency rules (duplicate events must not create duplicate charges)"
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Microservices Pattern Readiness)',
+        content:
+          "Before splitting services, ensure:\n\n" +
+          "- Tracing is planned (correlation IDs, trace propagation)\n" +
+          "- Centralized logs exist (structured logs + searchable store)\n" +
+          "- Runtime config is externalized (env/config maps/secrets)\n" +
+          "- Deployment/rollback is automated\n" +
+          "- Clear ownership and on-call expectations are defined"
+      }
+    ],
+
+    commonMistakes: [
+      "Splitting into many services before having CI/CD, observability, and ownership",
+      "Sharing a database across services (tight coupling through schema)",
+      "Building an API gateway that becomes a second monolith",
+      "Using synchronous calls everywhere (cascading failures)",
+      "Ignoring versioning and backward compatibility"
+    ],
+
+    bestPractices: [
+      "Start from a modular monolith when speed/clarity matters, then split intentionally",
+      "Make service boundaries explicit: owned data, owned APIs, owned events",
+      "Prefer async events for cross-domain workflows; use sync calls for queries",
+      "Design for failure: timeouts, retries with budgets, circuit breakers",
+      "Adopt observability early (logs, metrics, traces)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Growth-driven refactor**\n\n" +
+      "A company starts with a monolith. As teams grow, deployments become risky and slow. They create clear boundaries (Catalog, Orders) and introduce an API gateway to route traffic. They adopt events for the checkout workflow so Payments can fail without taking down Catalog browsing.\n\n" +
+      "The success factor isn’t the number of services — it’s the operational maturity around them.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Microservices are about boundaries and ownership\n" +
+      "2. Gateways/BFF shape and protect APIs\n" +
+      "3. Events decouple services but introduce eventual consistency\n" +
+      "4. Service mesh helps with traffic security/policy — not architecture",
+
+    nextSteps:
+      "Next, implement service communication patterns (REST/gRPC/messaging) and add resilience controls (timeouts, retries, circuit breakers) with strong observability."
+  },
+
+  'service-communication': {
+    introduction:
+      "Microservices communicate over the network — which means every call can fail, be slow, or be duplicated. Your job is to make communication **explicit, resilient, and observable**.\n\n" +
+      "This lesson focuses on REST vs gRPC, asynchronous messaging, and the practical engineering controls that prevent cascading failures.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- A single slow dependency can degrade many services\n" +
+      "- Retries can turn an incident into an outage if uncontrolled\n" +
+      "- Without correlation IDs and tracing, debugging becomes guesswork\n\n" +
+      "Good communication design reduces incident frequency and shortens time-to-diagnose.",
+
+    concepts: [
+      {
+        title: 'REST vs gRPC (Choosing the Right Tool)',
+        content:
+          "REST is widely compatible and easy to debug; gRPC is efficient and strongly typed.\n\n" +
+          "A pragmatic default: REST for public/external APIs, gRPC for internal service-to-service calls where performance and contracts matter."
+      },
+      {
+        title: 'Async Messaging (Queues/Streams)',
+        content:
+          "Messaging decouples producers and consumers and can absorb spikes. It introduces challenges: ordering, duplicates, and retries.\n\n" +
+          "Assume **at-least-once delivery** and build idempotent consumers."
+      },
+      {
+        title: 'Timeouts, Retries, and Budgets',
+        content:
+          "Always set timeouts. Retries must be limited and use exponential backoff + jitter.\n\n" +
+          "Use retry budgets so you don’t overload a dependency during partial failure."
+      },
+      {
+        title: 'Correlation IDs and Trace Propagation',
+        content:
+          "Every request should carry a correlation ID. Logs and traces should include it, so you can follow a user action across services.\n\n" +
+          "Without this, incident response becomes slow and error-prone."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Design Two Contracts (REST + gRPC)',
+        content:
+          "Pick a single capability (Product lookup) and write:\n\n" +
+          "- A REST contract (endpoint + response JSON)\n" +
+          "- A gRPC proto (request/response messages)\n\n" +
+          "Checklist:\n\n" +
+          "- Fields are stable and versioning is considered\n" +
+          "- Errors are explicit (what does not-found look like?)\n" +
+          "- Latency expectations are stated"
+      },
+      {
+        title: 'Lab 2: Add Safe Defaults (Timeout + Retry Budget)',
+        content:
+          "Define your client-side rules for calling a dependency:\n\n" +
+          "- Timeout per try\n" +
+          "- Max retries\n" +
+          "- Backoff policy\n" +
+          "- Which errors are retryable\n\n" +
+          "Now apply a simple rule: if the overall time budget is exceeded, stop retrying and return a controlled error."
+      },
+      {
+        title: 'Lab 3: Idempotency Exercise (Payments/Orders)',
+        content:
+          "Design an idempotency key strategy for `POST /orders`:\n\n" +
+          "- Client sends `Idempotency-Key`\n" +
+          "- Server stores the key and response for a limited window\n" +
+          "- Duplicate requests return the same result\n\n" +
+          "Goal: retries do not create duplicate orders or duplicate charges."
+      },
+      {
+        title: 'Lab 4: Communication DoD Checklist',
+        content:
+          "Before shipping a new inter-service call:\n\n" +
+          "- Timeout exists and is reviewed\n" +
+          "- Retries are capped and use jitter\n" +
+          "- Circuit breaker policy is defined (or mesh policy is configured)\n" +
+          "- Correlation IDs appear in logs\n" +
+          "- A dashboard/alert exists for latency and error rate"
+      }
+    ],
+
+    commonMistakes: [
+      "No timeouts (calls hang and exhaust resources)",
+      "Unbounded retries (retry storms)",
+      "Retrying non-idempotent operations without idempotency keys",
+      "Breaking backward compatibility without versioning",
+      "Lack of trace/correlation propagation"
+    ],
+
+    bestPractices: [
+      "Prefer simple, explicit contracts and strong versioning discipline",
+      "Treat retries as a tool of last resort (timeouts + circuit breakers first)",
+      "Use async messaging for workflows that can be eventually consistent",
+      "Make consumers idempotent and observable",
+      "Define SLOs per dependency (latency + availability expectations)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Incident caused by retry storm**\n\n" +
+      "A downstream service slows down. Clients have no timeouts and retry aggressively, creating more load and causing a wider outage. The fix is not just more capacity — it’s adding timeouts, capped retries with jitter, and circuit breakers, plus dashboards to detect saturation early.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Network calls fail: design for it\n" +
+      "2. Always use timeouts and bounded retries\n" +
+      "3. Idempotency makes retries safe\n" +
+      "4. Correlation IDs and tracing are non-negotiable",
+
+    nextSteps:
+      "Next, layer in resilience patterns systematically and validate them with failure drills and load testing."
+  },
+
+  'resilience-patterns': {
+    introduction:
+      "Resilience is the difference between a small incident and a multi-hour outage. In microservices, failure is normal — the goal is to **contain it** and keep delivering a degraded (but usable) experience.\n\n" +
+      "This lesson teaches the practical patterns and drills that make systems survivable: timeouts, retries with budgets, circuit breakers, bulkheads, and basic chaos experiments.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Services depend on services; a single failure can cascade\n" +
+      "- Without backpressure, overload becomes self-amplifying\n" +
+      "- Without runbooks, mean time to recovery grows dramatically\n\n" +
+      "A resilient system fails *predictably* and recovers quickly.",
+
+    concepts: [
+      {
+        title: 'Timeouts and Time Budgets',
+        content:
+          "Timeouts are the most important reliability control. Define per-try timeouts and an overall time budget.\n\n" +
+          "If the budget is exceeded, fail fast and degrade gracefully."
+      },
+      {
+        title: 'Circuit Breakers and Graceful Degradation',
+        content:
+          "Circuit breakers stop repeated failures from hammering a dependency. When open, the service should degrade gracefully (fallback response, cached data, or reduced feature set)."
+      },
+      {
+        title: 'Bulkheads and Isolation',
+        content:
+          "Bulkheads isolate resources so one dependency cannot consume all concurrency. Think separate pools/queues per downstream."
+      },
+      {
+        title: 'Chaos Engineering (Small, Safe, Useful)',
+        content:
+          "Chaos isn’t random destruction. It’s controlled experiments with clear hypotheses, limited blast radius, and measurable outcomes.\n\n" +
+          "Start with simple experiments: kill one pod, add latency, verify alerts and recovery procedures."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Add a “Failure Policy” for One Dependency',
+        content:
+          "Choose one call (Orders → Payments). Define and document:\n\n" +
+          "- Timeout per try\n" +
+          "- Max retries and which errors are retryable\n" +
+          "- Circuit breaker thresholds\n" +
+          "- Fallback behavior when dependency is unavailable\n\n" +
+          "Outcome: your team can explain exactly what happens during a dependency outage."
+      },
+      {
+        title: 'Lab 2: Rollout Gate + Rollback Drill',
+        content:
+          "Run a simple reliability drill in Kubernetes:\n\n" +
+          "```bash\n" +
+          "kubectl rollout status deploy/<service> -n default --timeout=120s\n" +
+          "kubectl get pods -n default\n" +
+          "\n" +
+          "# simulate an issue by deleting a pod\n" +
+          "kubectl delete pod -n default <pod-name>\n" +
+          "\n" +
+          "# if you deploy a broken change, practice rollback\n" +
+          "kubectl rollout undo deploy/<service> -n default\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- The service replaces failed pods automatically\n" +
+          "- Alerts fire when error rate increases\n" +
+          "- Rollback steps are documented and fast"
+      },
+      {
+        title: 'Lab 3: Define an SLO + Error Budget',
+        content:
+          "Define one SLO (example):\n\n" +
+          "- Availability SLO: 99.9% monthly\n" +
+          "- Latency SLO: p95 < 300ms\n\n" +
+          "Then decide how error budget affects releases:\n\n" +
+          "- If burn rate is high: slow down releases and fix reliability\n" +
+          "- If burn rate is healthy: ship features normally"
+      },
+      {
+        title: 'Lab 4: Resilience DoD Checklist',
+        content:
+          "Before production:\n\n" +
+          "- Timeouts exist for all outbound calls\n" +
+          "- Retries are bounded and safe\n" +
+          "- Circuit breaker/fallback behavior is tested\n" +
+          "- Bulkheads/isolation exist for critical dependencies\n" +
+          "- Runbook exists (alerts, dashboards, rollback steps)\n" +
+          "- A small failure drill has been executed"
+      }
+    ],
+
+    commonMistakes: [
+      "Relying on retries instead of fixing timeouts and overload controls",
+      "No rollback plan or slow rollback process",
+      "No runbooks (on-call improvises during incidents)",
+      "Treating chaos as random breakage rather than hypothesis-driven experiments",
+      "Ignoring saturation signals (CPU, memory, queue depth)"
+    ],
+
+    bestPractices: [
+      "Start with timeouts everywhere, then add bounded retries and circuit breakers",
+      "Prefer graceful degradation over total failure",
+      "Use bulkheads to isolate critical dependencies",
+      "Measure reliability with SLOs and error budgets",
+      "Practice recovery with small, safe drills"
+    ],
+
+    realWorldExample:
+      "**Scenario: Dependency outage with controlled degradation**\n\n" +
+      "A payment provider becomes unavailable. Orders continues to accept carts but marks them as ‘payment pending’ and notifies users, while background retries continue. The system remains usable, customer impact is limited, and recovery is controlled instead of chaotic.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Resilience is engineered: timeouts, budgets, breakers, isolation\n" +
+      "2. Rollback and runbooks reduce MTTR\n" +
+      "3. SLOs guide decisions using error budgets\n" +
+      "4. Failure drills validate assumptions",
+
+    nextSteps:
+      "Next, apply these patterns in the Module 9 project by designing reliability gates in CI/CD, adding dashboards, and practicing incident response workflows."
+  },
+
+  'cluster-management': {
+    introduction:
+      "Production Kubernetes is less about writing YAML and more about **operating a fleet safely**: node maintenance, upgrades, backups, and recovery.\n\n" +
+      "This lesson teaches you how to think like an SRE/Platform Engineer when you run Kubernetes clusters for real workloads.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Clusters must be upgraded regularly (security patches, CVEs, feature support)\n" +
+      "- Nodes fail; you need safe maintenance patterns\n" +
+      "- Backups and restore procedures are the difference between a bad day and a disaster\n\n" +
+      "If you can confidently drain nodes, validate health, and rehearse recovery, you can keep systems stable under change.",
+
+    concepts: [
+      {
+        title: 'Cluster Lifecycle and Change Management',
+        content:
+          "Treat cluster upgrades like production deployments: plan, stage, validate, and roll back.\n\n" +
+          "Always know: *what changed, what is the blast radius, and how do we recover?*"
+      },
+      {
+        title: 'Node Maintenance (Cordon/Drain) and Disruption Controls',
+        content:
+          "Cordon prevents new scheduling; drain safely evicts workloads. In production, your safety net is correct workload design plus disruption policies (PDBs)."
+      },
+      {
+        title: 'Backups and Disaster Recovery (etcd Basics)',
+        content:
+          "etcd stores cluster state. The exact backup mechanics depend on distro (kubeadm vs managed K8s), but the discipline is universal: scheduled backups, tested restores, and clear RTO/RPO targets."
+      },
+      {
+        title: 'Operational Observability',
+        content:
+          "During incident response you need fast answers: node pressure, pod restarts, events, and control-plane symptoms. Build the habit of reading signals before guessing."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Node Maintenance Drill (Safe Drain)',
+        content:
+          "Pick a node and practice maintenance the production way:\n\n" +
+          "```bash\n" +
+          "kubectl get nodes -o wide\n" +
+          "kubectl cordon <node-name>\n" +
+          "kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data --grace-period=60\n" +
+          "kubectl uncordon <node-name>\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- No critical service goes hard down during drain\n" +
+          "- You can explain which pods did not evict and why (DaemonSets, PDBs)\n" +
+          "- You know how to stop/abort safely if disruption becomes risky"
+      },
+      {
+        title: 'Lab 2: Upgrade Planning Checklist',
+        content:
+          "Before upgrading Kubernetes:\n\n" +
+          "- Confirm supported version skew for kubelet/control plane\n" +
+          "- Confirm add-on compatibility (CNI, CSI, ingress, metrics server)\n" +
+          "- Validate PDBs on critical workloads\n" +
+          "- Have a rollback plan (node image rollback, cluster snapshot, restore path)\n" +
+          "- Schedule the change window and define success criteria"
+      },
+      {
+        title: 'Lab 3: Backup Verification (Rehearse Restore)',
+        content:
+          "Backups you haven’t restored are not backups. Define a simple restore drill:\n\n" +
+          "- Identify what you back up (etcd snapshot, manifests, secrets strategy)\n" +
+          "- Pick a cadence (weekly restore test)\n" +
+          "- Record RTO/RPO expectations and results\n\n" +
+          "Deliverable: a short runbook describing backup schedule + restore steps + validation checks."
+      },
+      {
+        title: 'Lab 4: Cluster Ops Definition of Done',
+        content:
+          "A cluster is production-ready when:\n\n" +
+          "- You can patch/upgrade safely with minimal downtime\n" +
+          "- Node maintenance is routine (cordon/drain)\n" +
+          "- Backups are automated and restores are tested\n" +
+          "- Access is least-privilege (RBAC)\n" +
+          "- Monitoring/alerts cover node and control-plane health"
+      }
+    ],
+
+    commonMistakes: [
+      "Upgrading without validating add-on compatibility (CNI/CSI/Ingress)",
+      "Draining nodes without considering PDBs and workload readiness",
+      "Having backups but never testing restore",
+      "Over-permissive cluster-admin access",
+      "Ignoring cluster events and node conditions until there is an outage"
+    ],
+
+    bestPractices: [
+      "Treat cluster operations as a change-managed process",
+      "Make maintenance safe with PDBs, probes, and good rollout strategy",
+      "Automate backups and test restores regularly",
+      "Use least privilege and audit access",
+      "Keep runbooks short, specific, and practiced"
+    ],
+
+    realWorldExample:
+      "**Scenario: Security patch upgrade**\n\n" +
+      "A CVE requires a control-plane upgrade. The team validates CNI and ingress compatibility, drains nodes in waves, monitors error rate and latency, and rolls back one node group when an unexpected incompatibility appears. The incident becomes a controlled change instead of a prolonged outage.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Cluster ops is change management\n" +
+      "2. Node maintenance must be safe and repeatable\n" +
+      "3. Backups require tested restores\n" +
+      "4. Runbooks and least privilege reduce risk",
+
+    nextSteps:
+      "Next, apply advanced workload controls (PDBs, quotas, autoscaling) so routine maintenance and scaling events don’t break services."
+  },
+
+  'advanced-workload-management': {
+    introduction:
+      "In production, the hardest problems aren’t deploying workloads — they’re keeping them stable under disruption, contention, and scale.\n\n" +
+      "This lesson focuses on the controls that make clusters predictable: PDBs, priority classes, quotas/limits, probes, and autoscaling.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Without disruption controls, upgrades cause downtime\n" +
+      "- Without quotas, one team can starve another\n" +
+      "- Without autoscaling, you either overpay or fall over during spikes\n\n" +
+      "These patterns convert Kubernetes from ‘works in dev’ to ‘stable in production’.",
+
+    concepts: [
+      {
+        title: 'Disruption Budgets (PDBs)',
+        content:
+          "PDBs limit voluntary disruption (drains, upgrades). They do not protect against involuntary failures (node crash).\n\n" +
+          "Your job is to align PDBs with desired availability and rollout strategy."
+      },
+      {
+        title: 'Priority and Preemption',
+        content:
+          "PriorityClasses help ensure critical workloads survive when the cluster is under pressure. Use them carefully — they can evict lower-priority pods."
+      },
+      {
+        title: 'Quotas, Limits, and Predictability',
+        content:
+          "ResourceQuotas and LimitRanges prevent noisy-neighbor incidents and provide predictable scheduling behavior."
+      },
+      {
+        title: 'Autoscaling and Its Failure Modes',
+        content:
+          "HPA solves replica scaling but can be misled by bad metrics or too-aggressive targets. Always bound scaling (min/max) and observe behavior under load."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Make a Workload “Drain-Safe”',
+        content:
+          "Pick a Deployment and ensure it can survive node drains:\n\n" +
+          "- Add readiness probe (only route traffic when ready)\n" +
+          "- Add at least 2 replicas\n" +
+          "- Add a PDB with `minAvailable`\n\n" +
+          "Then perform a node drain and confirm the service remains available."
+      },
+      {
+        title: 'Lab 2: Add Quotas (Prevent Noisy Neighbor)',
+        content:
+          "Create a namespace for a ‘team’ and apply ResourceQuota + LimitRange.\n\n" +
+          "Checklist:\n\n" +
+          "- Pods without requests/limits are rejected (or defaulted)\n" +
+          "- The namespace cannot exceed its quota\n" +
+          "- You can explain how this protects other tenants"
+      },
+      {
+        title: 'Lab 3: HPA Behavior Under Load (Observe, Don’t Guess)',
+        content:
+          "Deploy a simple service with HPA enabled, then generate load and watch scaling:\n\n" +
+          "- Observe CPU/latency\n" +
+          "- Confirm scale-up happens\n" +
+          "- Confirm scale-down is not too aggressive\n\n" +
+          "Success criteria: scaling improves stability without oscillation."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Workload Governance)',
+        content:
+          "Before production:\n\n" +
+          "- Requests/limits are set\n" +
+          "- Probes are correct\n" +
+          "- PDB exists (if service must survive drains)\n" +
+          "- HPA bounds are defined\n" +
+          "- PriorityClass is applied for truly critical workloads\n" +
+          "- Dashboards/alerts exist for saturation and errors"
+      }
+    ],
+
+    commonMistakes: [
+      "Using PDBs that block all disruption (minAvailable too high)",
+      "Running critical workloads with one replica",
+      "No resource requests/limits (unpredictable scheduling)",
+      "Autoscaling without bounds (runaway scale)",
+      "Treating HPA as a replacement for performance work"
+    ],
+
+    bestPractices: [
+      "Use PDBs with realistic availability targets",
+      "Set requests/limits to protect node stability",
+      "Add probes for safe rollouts and routing",
+      "Observe autoscaling behavior and tune targets",
+      "Combine governance (quotas/limits) with team ownership"
+    ],
+
+    realWorldExample:
+      "**Scenario: Upgrade without downtime**\n\n" +
+      "A cluster is upgraded node-by-node. Services with 2+ replicas, correct readiness probes, and realistic PDBs stay available. Teams without these controls experience outages during drains. The lesson: operational controls are not optional — they are production requirements.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. PDBs and probes make maintenance safe\n" +
+      "2. Quotas and limits keep multi-team clusters stable\n" +
+      "3. Autoscaling must be observed and bounded\n" +
+      "4. Governance enables safe autonomy",
+
+    nextSteps:
+      "Next, adopt a service mesh to standardize mTLS and traffic policy, and to unlock progressive delivery patterns with better visibility."
+  },
+
+  'service-mesh-deep-dive': {
+    introduction:
+      "A service mesh gives you consistent service-to-service security and traffic controls without rewriting every application client.\n\n" +
+      "In this lesson you’ll learn Istio fundamentals (sidecars, control plane), apply mTLS and policy, and practice safe traffic routing patterns.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- mTLS by default removes a huge class of in-cluster security risk\n" +
+      "- Traffic policy (timeouts/retries) can be standardized\n" +
+      "- Telemetry becomes richer and more consistent\n\n" +
+      "Meshes can also be noisy and complex — success comes from minimal, intentional policies.",
+
+    concepts: [
+      {
+        title: 'Control Plane vs Data Plane',
+        content:
+          "The data plane (sidecars) intercepts traffic; the control plane configures routing/security policies. Your mental model should be: *policy changes should be safe and reversible*."
+      },
+      {
+        title: 'mTLS and Authorization',
+        content:
+          "mTLS provides identity for workloads. Authorization policies define who can call whom. This enables a practical zero-trust posture inside the cluster."
+      },
+      {
+        title: 'Traffic Policy and Progressive Delivery',
+        content:
+          "With VirtualServices and DestinationRules, you can implement canary/blue-green routing.\n\n" +
+          "Be careful: retries and timeouts can amplify load if misconfigured."
+      },
+      {
+        title: 'Telemetry (Traces/Metrics/Logs)',
+        content:
+          "Mesh telemetry helps you see call graphs and latency. Use it to answer: which dependency is slow and where errors originate."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Install Istio and Verify Injection',
+        content:
+          "Install Istio, enable injection, and verify pods have sidecars:\n\n" +
+          "```bash\n" +
+          "kubectl create namespace istio-system\n" +
+          "istioctl install --set profile=demo -y\n" +
+          "kubectl label namespace default istio-injection=enabled --overwrite\n" +
+          "kubectl get pods -n istio-system\n" +
+          "```\n\n" +
+          "Checklist:\n\n" +
+          "- New pods in the namespace have 2 containers (app + proxy)\n" +
+          "- `istioctl proxy-status` shows healthy proxies"
+      },
+      {
+        title: 'Lab 2: Enforce mTLS + Allow Only One Caller',
+        content:
+          "Turn on strict mTLS for a namespace/workload, then create an AuthorizationPolicy that allows only a specific service account.\n\n" +
+          "Success criteria:\n\n" +
+          "- Calls from allowed principal succeed\n" +
+          "- Calls from other principals fail with an authorization error"
+      },
+      {
+        title: 'Lab 3: Canary Routing (90/10) + Rollback',
+        content:
+          "Create stable and canary subsets and route traffic 90/10.\n\n" +
+          "Checklist:\n\n" +
+          "- You can increase canary weight in steps\n" +
+          "- You can rollback by setting weight back to 0\n" +
+          "- You observe error rate/latency while shifting traffic"
+      },
+      {
+        title: 'Lab 4: Mesh DoD Checklist',
+        content:
+          "Before enabling mesh widely:\n\n" +
+          "- Start with one namespace and a rollback plan\n" +
+          "- Define minimal global defaults (avoid ‘catch-all’ policies)\n" +
+          "- Review retries/timeouts to prevent overload amplification\n" +
+          "- Ensure telemetry cost is understood\n" +
+          "- Document the operational runbook (debugging, upgrades, policy changes)"
+      }
+    ],
+
+    commonMistakes: [
+      "Turning on strict policies cluster-wide without a staged rollout",
+      "Configuring aggressive retries that amplify downstream overload",
+      "Relying on mesh to fix poor app behavior (no timeouts, poor error handling)",
+      "Too much telemetry without retention/cost planning",
+      "Not teaching teams how to debug mesh issues"
+    ],
+
+    bestPractices: [
+      "Roll out mesh incrementally (namespace by namespace)",
+      "Use mTLS + authorization as the core value early",
+      "Keep traffic policies simple; prefer explicit canary steps",
+      "Treat policy changes as production changes (review + rollback)",
+      "Make troubleshooting playbooks part of onboarding"
+    ],
+
+    realWorldExample:
+      "**Scenario: Standardizing security and routing**\n\n" +
+      "A platform team enables mTLS and standard timeouts across services, then introduces canary routing for critical APIs. Incidents become easier to triage because telemetry shows which hop is slow. The rollout succeeds because it is staged and reversible, not a single big-bang change.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Mesh enables consistent security and traffic policy\n" +
+      "2. Rollouts must be staged and reversible\n" +
+      "3. Misconfigured retries/timeouts can worsen outages\n" +
+      "4. Operational runbooks are required",
+
+    nextSteps:
+      "Next, build full observability (metrics, logs, traces) and use it to drive SLOs, dashboards, and alerting in the next module."
+  },
+
+  'metrics-with-prometheus-grafana': {
+    introduction:
+      "Metrics answer: **what is happening right now?** They are the fastest signal during incidents and the foundation for SLOs and alerting.\n\n" +
+      "In this lesson you’ll deploy Prometheus and Grafana, write PromQL for the golden signals, build dashboards that support incident response, and create alert rules that are actionable.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Metrics detect problems earlier than logs\n" +
+      "- Dashboards shorten diagnosis time by showing the right context\n" +
+      "- Good alerting reduces noise and prevents missed incidents\n\n" +
+      "Without metrics, teams guess. With metrics, teams verify.",
+
+    concepts: [
+      {
+        title: 'Metric Types (Counter/Gauge/Histogram)',
+        content:
+          "Counters only go up (requests, errors). Gauges go up/down (CPU, queue depth). Histograms capture distributions (latency).\n\n" +
+          "Latency should be measured as a distribution (p50/p95/p99), not as a single average."
+      },
+      {
+        title: 'Prometheus Model (Scrape, Targets, Labels)',
+        content:
+          "Prometheus scrapes metrics endpoints on a schedule. Targets come from service discovery and are organized by labels.\n\n" +
+          "Labeling is powerful but dangerous: high-cardinality labels can explode cost and performance."
+      },
+      {
+        title: 'Golden Signals and Incident Dashboards',
+        content:
+          "Build dashboards around: traffic, errors, latency, saturation.\n\n" +
+          "A good incident dashboard shows: current impact, top offenders, and links to logs/traces."
+      },
+      {
+        title: 'Alerting: Actionable and Low Noise',
+        content:
+          "Alerts should be symptoms users care about (high error rate, SLO burn) and should include clear next steps.\n\n" +
+          "Prefer fewer, better alerts over comprehensive noise."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Validate Scrape Targets',
+        content:
+          "After deploying Prometheus, confirm what it is scraping:\n\n" +
+          "- List ServiceMonitors/PodMonitors (if using Prometheus Operator)\n" +
+          "- Check Prometheus targets page\n" +
+          "- Confirm your app exposes `/metrics`\n\n" +
+          "Success criteria: you can point to the exact target and see the metric names appearing."
+      },
+      {
+        title: 'Lab 2: PromQL for Golden Signals',
+        content:
+          "Write (and save) three queries:\n\n" +
+          "- Request rate\n" +
+          "- Error rate (5xx)\n" +
+          "- Latency p95 (histogram)\n\n" +
+          "Checklist:\n\n" +
+          "- Queries are scoped with labels (service/namespace)\n" +
+          "- You can explain the time window used (e.g., 5m)\n" +
+          "- You can tell if the change is real or noise"
+      },
+      {
+        title: 'Lab 3: Build an Incident Dashboard (Minimum)',
+        content:
+          "Create a dashboard with 6 panels:\n\n" +
+          "- Traffic (RPS)\n" +
+          "- Errors (5xx rate + %)\n" +
+          "- Latency (p50/p95)\n" +
+          "- Saturation (CPU/memory)\n" +
+          "- Top pods by restarts\n" +
+          "- Top endpoints by latency (if metrics available)\n\n" +
+          "Deliverable: a screenshot or exported dashboard JSON."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Metrics)',
+        content:
+          "Before production:\n\n" +
+          "- Metrics endpoints are stable\n" +
+          "- Labels avoid high cardinality (no userId, requestId, etc.)\n" +
+          "- Dashboards cover golden signals\n" +
+          "- Alerts are actionable and tested\n" +
+          "- On-call knows where to look first"
+      }
+    ],
+
+    commonMistakes: [
+      "Using averages for latency instead of percentiles",
+      "High-cardinality labels that explode storage/cost",
+      "Dashboards built for demos rather than incident response",
+      "Alerting on everything (noise) instead of user impact",
+      "No runbooks linked from alerts"
+    ],
+
+    bestPractices: [
+      "Use golden signals as the default dashboard structure",
+      "Use histograms for latency and alert on burn-rate or error rate",
+      "Keep labels stable and low-cardinality",
+      "Link dashboards and runbooks directly from alerts",
+      "Review alert noise monthly and prune aggressively"
+    ],
+
+    realWorldExample:
+      "**Scenario: Latency regression**\n\n" +
+      "p95 latency spikes after a deploy, while traffic is stable. Metrics show saturation on one node pool and increased queue depth. The team identifies a slow dependency and rolls back quickly. Without metrics, this would look like ‘random slowness’.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Metrics are the fastest incident signal\n" +
+      "2. Golden signals make dashboards usable\n" +
+      "3. Labels can make or break observability\n" +
+      "4. Alerts must be actionable",
+
+    nextSteps:
+      "Next, add centralized logging so you can answer ‘why did it happen?’ and correlate logs with metrics and traces."
+  },
+
+  'logging-with-elk-loki': {
+    introduction:
+      "Logs answer: **why did it happen?** They provide the narrative and context behind metric spikes and failed requests.\n\n" +
+      "This lesson focuses on centralized logging with Loki (or ELK), structured logs, safe labeling, and LogQL queries that help you debug incidents quickly.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Without central logs, debugging becomes SSH + guesswork\n" +
+      "- Distributed systems need correlation IDs to connect events\n" +
+      "- Logging costs can explode without discipline\n\n" +
+      "The goal is searchable, structured, and secure logging — not ‘log everything’.",
+
+    concepts: [
+      {
+        title: 'Structured Logging and Correlation',
+        content:
+          "Use structured logs (JSON) so you can filter and aggregate. Include correlation IDs (traceId/requestId) so logs connect across services."
+      },
+      {
+        title: 'Labels and Cardinality',
+        content:
+          "In Loki, labels index streams. Too many unique label values (high cardinality) can break performance and cost.\n\n" +
+          "Use labels for stable dimensions (service, namespace, level), and keep high-cardinality values inside log content."
+      },
+      {
+        title: 'Retention and Access Controls',
+        content:
+          "Define retention based on operational needs and compliance. Restrict access to sensitive logs and avoid storing secrets/PII."
+      },
+      {
+        title: 'Debug Workflows',
+        content:
+          "Start from symptoms (error spike) and narrow down by service, endpoint, traceId, and time window. Save common queries as templates for on-call."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Verify Ingestion End-to-End',
+        content:
+          "After deploying Loki + Promtail, verify logs are flowing:\n\n" +
+          "- Promtail is running on nodes\n" +
+          "- Loki is healthy\n" +
+          "- Grafana can query Loki datasource\n\n" +
+          "Success criteria: you can query logs for a known pod and see recent entries."
+      },
+      {
+        title: 'Lab 2: Convert One Service to Structured Logs',
+        content:
+          "Pick one service and ensure it emits JSON logs with at least: `level`, `service`, `message`, and `traceId` (if available).\n\n" +
+          "Then write two LogQL queries:\n\n" +
+          "- Errors over time\n" +
+          "- Filter by traceId from a failing request"
+      },
+      {
+        title: 'Lab 3: Build an On-Call Log Dashboard (Minimum)',
+        content:
+          "Create panels for:\n\n" +
+          "- Error logs by service\n" +
+          "- Top error messages\n" +
+          "- Recent deploy events (if logged)\n\n" +
+          "Deliverable: a short list of saved queries and when to use them."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Logging)',
+        content:
+          "Before production:\n\n" +
+          "- Logs are structured and consistent\n" +
+          "- Labels are low-cardinality\n" +
+          "- Sensitive data is not logged\n" +
+          "- Retention is defined\n" +
+          "- A basic log dashboard exists"
+      }
+    ],
+
+    commonMistakes: [
+      "High-cardinality labels (userId, requestId) causing cost/perf issues",
+      "Logging secrets or PII",
+      "No correlation IDs, making cross-service debugging painful",
+      "Too much log volume without retention planning",
+      "Treating logs as the only signal (ignoring metrics/traces)"
+    ],
+
+    bestPractices: [
+      "Use JSON structured logs with consistent fields",
+      "Keep labels low-cardinality and stable",
+      "Propagate traceId/correlation IDs into logs",
+      "Define retention and access control policies",
+      "Create a short list of saved queries for on-call"
+    ],
+
+    realWorldExample:
+      "**Scenario: Intermittent 500s**\n\n" +
+      "Metrics show a small error rate spike. Logs filtered by traceId reveal a timeout to a dependency after a deploy. The team confirms the regression and rolls back. Central logs turn a vague symptom into a precise cause.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Logs explain the ‘why’ behind metrics\n" +
+      "2. Structure and correlation make logs usable\n" +
+      "3. Cardinality discipline keeps logging sustainable\n" +
+      "4. Dashboards and saved queries speed up on-call",
+
+    nextSteps:
+      "Next, add distributed tracing to see where time is spent across service boundaries and dependencies."
+  },
+
+  'distributed-tracing-with-jaeger': {
+    introduction:
+      "Traces answer: **where did time go?** In microservices, a user request is a chain of service calls. Tracing reveals the call graph, critical path, and slow hops.\n\n" +
+      "This lesson introduces OpenTelemetry (OTel) and Jaeger, and shows how to use traces to troubleshoot latency and reliability issues.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Logs are local to one service; traces show the whole request\n" +
+      "- Latency issues are often dependency-related\n" +
+      "- Traces connect metrics spikes to specific operations\n\n" +
+      "With tracing, you stop guessing which service is slow.",
+
+    concepts: [
+      {
+        title: 'Spans and Context Propagation',
+        content:
+          "A trace is made of spans. Context propagation carries trace information across services so spans connect correctly."
+      },
+      {
+        title: 'Sampling and Safety',
+        content:
+          "Sampling controls cost and overhead. Be careful with attributes: avoid putting secrets/PII into traces."
+      },
+      {
+        title: 'Using Traces for Debugging',
+        content:
+          "Start from a slow request, find the trace, then locate the longest span. Validate retries/timeouts are not amplifying work. Correlate with logs and metrics."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Get End-to-End Traces Working',
+        content:
+          "Instrument one service with OpenTelemetry and export traces to Jaeger (directly or via an OTel collector).\n\n" +
+          "Success criteria: you can load Jaeger UI and see traces for real requests."
+      },
+      {
+        title: 'Lab 2: Trace a Slow Request',
+        content:
+          "Create an artificial delay in a dependency (or simulate load), then:\n\n" +
+          "- Find the trace for a slow request\n" +
+          "- Identify the slow hop\n" +
+          "- Confirm the service and endpoint involved\n\n" +
+          "Deliverable: a screenshot with the highlighted span and your diagnosis."
+      },
+      {
+        title: 'Lab 3: Correlate Logs and Traces',
+        content:
+          "Take a `traceId` from Jaeger and search for it in logs.\n\n" +
+          "Outcome: you can pivot between metrics → trace → logs quickly during incident response."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Tracing)',
+        content:
+          "Before production:\n\n" +
+          "- Trace context propagates across services\n" +
+          "- Sampling is configured and cost is understood\n" +
+          "- Sensitive attributes are avoided\n" +
+          "- Traces are useful (key spans named and tagged)\n" +
+          "- On-call knows how to use tracing for latency issues"
+      }
+    ],
+
+    commonMistakes: [
+      "No context propagation (broken traces)",
+      "Storing sensitive data in span attributes",
+      "Too much tracing volume without sampling",
+      "Unhelpful span names (can’t find the critical path)",
+      "Treating tracing as a replacement for metrics/logs (it’s complementary)"
+    ],
+
+    bestPractices: [
+      "Adopt OpenTelemetry for consistency",
+      "Standardize span naming and attributes",
+      "Sample thoughtfully; increase sampling during incidents",
+      "Correlate traceId in logs",
+      "Create a trace-based troubleshooting checklist"
+    ],
+
+    realWorldExample:
+      "**Scenario: Slow checkout**\n\n" +
+      "A checkout endpoint is slow. Tracing shows most time is spent waiting on an inventory call with retries. The team reduces retry aggressiveness and adds caching. Metrics confirm latency improves. Traces made the root cause obvious.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Traces show the critical path across services\n" +
+      "2. OTel standardizes instrumentation\n" +
+      "3. Sampling and data safety matter\n" +
+      "4. Correlation accelerates debugging",
+
+    nextSteps:
+      "Next, define SLIs/SLOs and add synthetic checks so you detect user impact early and alert with low noise."
+  },
+
+  'apm-synthetic-monitoring': {
+    introduction:
+      "Monitoring is not ‘alerts everywhere’. It’s choosing the right signals that reflect user experience and operational risk.\n\n" +
+      "This lesson focuses on SLIs/SLOs, burn-rate alerting concepts, and synthetic monitoring that catches issues before users report them.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Without SLOs, teams argue about what ‘good’ means\n" +
+      "- Without synthetics, you may detect outages late\n" +
+      "- Without runbooks, alerts become panic instead of process\n\n" +
+      "SLO-driven monitoring makes on-call sustainable.",
+
+    concepts: [
+      {
+        title: 'SLIs vs SLOs vs Error Budgets',
+        content:
+          "SLIs are measurements, SLOs are targets, and error budgets quantify how much unreliability you can ‘spend’ while still meeting the SLO."
+      },
+      {
+        title: 'Burn Rate (Why Two Windows Help)',
+        content:
+          "Burn-rate alerting can detect fast outages (short window) while also catching slow degradation (long window) without excessive noise."
+      },
+      {
+        title: 'Synthetic Monitoring',
+        content:
+          "Synthetic checks validate availability and critical user flows. Keep them simple and stable, and alert on failures that indicate real user impact."
+      },
+      {
+        title: 'Runbooks and Operational Readiness',
+        content:
+          "Every critical alert should link to a runbook: what it means, where to look, and how to mitigate."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define an SLO for One User Journey',
+        content:
+          "Pick a journey (login, checkout). Define:\n\n" +
+          "- SLI (what you measure)\n" +
+          "- SLO (the target)\n" +
+          "- Error budget (allowed failures)\n\n" +
+          "Deliverable: a one-page SLO doc your team would actually use."
+      },
+      {
+        title: 'Lab 2: Build Two Synthetic Checks',
+        content:
+          "Create two checks:\n\n" +
+          "- Uptime `/health`\n" +
+          "- A basic flow (e.g., fetch a product)\n\n" +
+          "Checklist:\n\n" +
+          "- Checks fail only on meaningful issues\n" +
+          "- Alert messages include the URL and expected behavior\n" +
+          "- You can run the same checks locally for debugging"
+      },
+      {
+        title: 'Lab 3: Create a Minimal Runbook',
+        content:
+          "Write a runbook for one alert:\n\n" +
+          "- What the alert means\n" +
+          "- Dashboards to check\n" +
+          "- Common causes\n" +
+          "- Mitigation steps (rollback, scale, feature flag)\n\n" +
+          "Deliverable: a short runbook you can follow under pressure."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (SLO Monitoring)',
+        content:
+          "Before production:\n\n" +
+          "- SLOs are defined for critical journeys\n" +
+          "- Alerts are low-noise and tested\n" +
+          "- Synthetic checks cover key endpoints\n" +
+          "- Runbooks exist for critical alerts\n" +
+          "- Ownership and escalation are clear"
+      }
+    ],
+
+    commonMistakes: [
+      "Alerting on internal metrics without user impact",
+      "No error budget concept (no trade-off framework)",
+      "Too many synthetic checks (noise) instead of a few meaningful ones",
+      "No runbooks (alerts create chaos)",
+      "SLOs that are unrealistic or not reviewed"
+    ],
+
+    bestPractices: [
+      "Start with one or two SLOs that reflect user pain",
+      "Use burn-rate mindset for alerting (fast + slow detection)",
+      "Keep synthetics simple and stable",
+      "Attach runbooks and ownership to alerts",
+      "Review SLOs and alert noise regularly"
+    ],
+
+    realWorldExample:
+      "**Scenario: Detecting partial outage early**\n\n" +
+      "A deployment introduces a bug that breaks one critical flow while `/health` still returns OK. Synthetic flow checks catch it immediately, and SLO burn alerts fire with actionable context. The team rolls back before a major incident forms.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. SLOs define ‘good’ in measurable terms\n" +
+      "2. Synthetics detect user impact early\n" +
+      "3. Alerts need runbooks and ownership\n" +
+      "4. Fewer, better alerts make on-call sustainable",
+
+    nextSteps:
+      "Next, apply these observability practices to security and compliance by ensuring auditability, retention policies, and least-privilege access to telemetry."
+  },
+
+  'container-security': {
+    introduction:
+      "Container security is a **pipeline problem** and a **runtime problem**. You secure what you build (images and dependencies), what you ship (registry and provenance), and what you run (Kubernetes policies and runtime constraints).\n\n" +
+      "This lesson gives you hands-on workflows for image scanning, hardened runtime configuration, and admission controls so insecure workloads are blocked before they hit production.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Most incidents start with preventable misconfigurations\n" +
+      "- CVEs are constant; response must be routine\n" +
+      "- A single privileged pod can become a cluster-wide compromise\n\n" +
+      "Security is not a one-time checklist — it is an operational capability.",
+
+    concepts: [
+      {
+        title: 'Threat Model: Build → Ship → Run',
+        content:
+          "Build: vulnerable dependencies and base images. Ship: registry controls, signatures, and immutability. Run: least privilege, network policy, admission policy, and runtime detection."
+      },
+      {
+        title: 'Vulnerability Scanning (Triage Mindset)',
+        content:
+          "Not every finding is equally actionable. Triage by: exploitability, exposure, and fix availability.\n\n" +
+          "A practical rule: block critical/high vulnerabilities **when a fix exists**, and track the rest with a remediation SLA."
+      },
+      {
+        title: 'Least Privilege Runtime Defaults',
+        content:
+          "Prefer: runAsNonRoot, read-only filesystem, drop capabilities, disallow privilege escalation, and RuntimeDefault seccomp."
+      },
+      {
+        title: 'Admission Controls (Prevent, Don’t Detect)',
+        content:
+          "Use Kubernetes Pod Security Admission and/or policy-as-code (OPA Gatekeeper/Kyverno) to block insecure deployments automatically."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Scan an Image and Triage Findings',
+        content:
+          "Build an image and scan it with one tool (Trivy or Docker Scout).\n\n" +
+          "Checklist:\n\n" +
+          "- Identify the top 5 findings by severity\n" +
+          "- Mark which ones are fixable by base image upgrade\n" +
+          "- Decide a policy: block vs warn\n\n" +
+          "Deliverable: a short triage note (what you would fix now vs later)."
+      },
+      {
+        title: 'Lab 2: Harden a Pod (SecurityContext)',
+        content:
+          "Take a workload and apply least-privilege settings:\n\n" +
+          "- `runAsNonRoot: true`\n" +
+          "- `allowPrivilegeEscalation: false`\n" +
+          "- `readOnlyRootFilesystem: true`\n" +
+          "- drop all Linux capabilities\n" +
+          "- `seccompProfile: RuntimeDefault`\n\n" +
+          "Success criteria: the workload still runs, and your settings are enforced in the pod spec."
+      },
+      {
+        title: 'Lab 3: Enforce Pod Security Standards (Restricted)',
+        content:
+          "Label a namespace to enforce restricted pod security and try deploying an insecure pod.\n\n" +
+          "Checklist:\n\n" +
+          "- Insecure pod is blocked at admission\n" +
+          "- You can read the warning/audit output and explain what to fix\n" +
+          "- You can create an exception process (separate namespace with controls)"
+      },
+      {
+        title: 'Lab 4: Container Security DoD',
+        content:
+          "Before production:\n\n" +
+          "- Images are scanned and a policy exists (block/warn + SLA)\n" +
+          "- Workloads run as non-root with minimal privileges\n" +
+          "- Namespace has Pod Security enforce labels\n" +
+          "- CI/CD can rebuild and redeploy quickly when a CVE drops\n" +
+          "- A runbook exists for vulnerability response"
+      }
+    ],
+
+    commonMistakes: [
+      "Treating scans as pass/fail without triage and remediation workflow",
+      "Running privileged pods because it ‘fixes’ permissions",
+      "Using latest tags in production (non-reproducible builds)",
+      "No admission enforcement (discovering issues after deployment)",
+      "Logging secrets or shipping them inside images"
+    ],
+
+    bestPractices: [
+      "Pin base images and update them regularly",
+      "Run workloads with least privilege by default",
+      "Enforce security at admission to prevent drift",
+      "Create a CVE response routine (triage → patch → redeploy)",
+      "Use SBOM/signing when you can (supply chain maturity)"
+    ],
+
+    realWorldExample:
+      "**Scenario: New critical CVE**\n\n" +
+      "A critical CVE drops for a popular base image. The team’s pipeline automatically scans, rebuilds with a patched base image, and redeploys the workloads. Because admission policies enforce least privilege, the runtime blast radius stays small even if an exploit attempt occurs.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Secure build + secure runtime both matter\n" +
+      "2. Scanning requires triage and a remediation workflow\n" +
+      "3. Least privilege prevents cluster-level compromise\n" +
+      "4. Admission controls enforce policy continuously",
+
+    nextSteps:
+      "Next, secure your secret lifecycle (storage, rotation, and GitOps patterns) so sensitive data stays out of images, logs, and repos."
+  },
+
+  'secrets-management': {
+    introduction:
+      "Secrets management is about controlling **who can access sensitive data**, **when**, and **how you rotate it safely**.\n\n" +
+      "In this lesson you’ll practice Kubernetes secret handling, GitOps-friendly approaches (Sealed Secrets), and external secret stores (Vault/cloud) with rotation-ready patterns.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Secrets leak easily (logs, env dumps, misconfigured RBAC)\n" +
+      "- Rotation is inevitable (incident response, compliance)\n" +
+      "- GitOps needs a safe way to manage secrets without plaintext\n\n" +
+      "Good secret hygiene reduces breach probability and makes response faster.",
+
+    concepts: [
+      {
+        title: 'Secret Lifecycle (Create, Store, Rotate, Revoke)',
+        content:
+          "Treat secrets as time-bound. Design rotation into your system: dual keys, staged rollout, and clean revocation."
+      },
+      {
+        title: 'Mount vs Environment Variables',
+        content:
+          "Mount secrets as files when possible. Env vars are convenient but leak more easily via process dumps, crash reports, and debug tooling."
+      },
+      {
+        title: 'GitOps Patterns (Sealed Secrets / External Secrets)',
+        content:
+          "Sealed Secrets let you store encrypted secrets in Git. External Secrets pulls from a dedicated store like Vault.\n\n" +
+          "Choose based on organizational maturity and operational requirements."
+      },
+      {
+        title: 'Least Privilege Access (RBAC)',
+        content:
+          "Secrets should be readable only by workloads and operators that absolutely need them. Validate with `kubectl auth can-i`."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Mount a Secret as a File and Use It Safely',
+        content:
+          "Create a secret and mount it into a pod as a file.\n\n" +
+          "Checklist:\n\n" +
+          "- The secret is not printed in logs\n" +
+          "- The secret is not baked into the container image\n" +
+          "- Only the workload service account can read it"
+      },
+      {
+        title: 'Lab 2: GitOps Secret Workflow (Sealed Secrets)',
+        content:
+          "Seal a secret and store the SealedSecret in Git.\n\n" +
+          "Success criteria:\n\n" +
+          "- The repo contains only encrypted data\n" +
+          "- Applying the SealedSecret results in a usable Secret\n" +
+          "- You understand key rotation implications"
+      },
+      {
+        title: 'Lab 3: Rotation Drill (Dual Key Strategy)',
+        content:
+          "Design a rotation plan for an API key:\n\n" +
+          "- Add new key\n" +
+          "- Roll out remember both keys\n" +
+          "- Switch traffic to new key\n" +
+          "- Revoke old key\n\n" +
+          "Deliverable: a written sequence of steps with rollback options."
+      },
+      {
+        title: 'Lab 4: Secrets DoD',
+        content:
+          "Before production:\n\n" +
+          "- Secrets are never in Git plaintext\n" +
+          "- RBAC is least privilege for secrets\n" +
+          "- Rotation process exists and is rehearsed\n" +
+          "- Logs avoid leaking secrets\n" +
+          "- Access is auditable"
+      }
+    ],
+
+    commonMistakes: [
+      "Committing secrets to Git (even temporarily)",
+      "Over-broad RBAC (many users can read secrets)",
+      "Using env vars everywhere without considering leakage",
+      "No rotation plan until an incident happens",
+      "Storing secrets in container images or CI logs"
+    ],
+
+    bestPractices: [
+      "Prefer external secret stores for high maturity environments",
+      "Mount secrets as files where possible",
+      "Validate access with `kubectl auth can-i`",
+      "Plan rotation with dual-key staged rollout",
+      "Treat secret changes as production changes (review + audit)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Credential compromise**\n\n" +
+      "A credential is suspected to be leaked. Because the team has a rotation drill and uses least-privilege RBAC, they rotate quickly, revoke the old secret, and confirm access logs show no unusual secret reads.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Secrets have a lifecycle and must be rotated\n" +
+      "2. GitOps needs encrypted or external secret patterns\n" +
+      "3. RBAC limits blast radius\n" +
+      "4. Rotation should be rehearsed, not improvised",
+
+    nextSteps:
+      "Next, turn security controls into auditable evidence with RBAC review, audit logs, and policy-as-code enforcement."
+  },
+
+  'compliance-auditing': {
+    introduction:
+      "Compliance is not just paperwork — it is proving that controls exist, are enforced, and are monitored.\n\n" +
+      "This lesson focuses on the operational building blocks: least-privilege RBAC, audit logging, and policy-as-code so enforcement is automatic and evidence is easy to produce.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Audits require evidence (who changed what and when)\n" +
+      "- Over-permissioned access increases breach impact\n" +
+      "- Policy-as-code prevents drift and creates consistent enforcement\n\n" +
+      "Good compliance engineering makes systems safer and audits less painful.",
+
+    concepts: [
+      {
+        title: 'Least Privilege RBAC',
+        content:
+          "RBAC should be role-based and minimal. Use `kubectl auth can-i` as a testing tool: prove permissions rather than assuming them."
+      },
+      {
+        title: 'Audit Logging and Evidence',
+        content:
+          "Audit logs answer who/what/when/where. The exact setup varies (managed K8s vs self-managed), but the evidence lifecycle is similar: retention, integrity, and restricted access."
+      },
+      {
+        title: 'Policy as Code',
+        content:
+          "Policy-as-code (OPA Gatekeeper/Kyverno) enforces controls at admission time. This prevents insecure workloads and creates consistent rules that can be reviewed and versioned."
+      },
+      {
+        title: 'Exception Handling',
+        content:
+          "Every org needs exceptions. The key is process: time-bound approvals, documented risk acceptance, and compensating controls."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: RBAC Review (Prove Access)',
+        content:
+          "Pick two personas (developer, auditor) and define what they should be able to do.\n\n" +
+          "Then verify with `kubectl auth can-i`:\n\n" +
+          "- Can developer create deployments?\n" +
+          "- Can auditor read secrets? (should usually be NO)\n" +
+          "- Can auditor list pods/events? (often YES)\n\n" +
+          "Deliverable: a short table of permissions per persona."
+      },
+      {
+        title: 'Lab 2: Policy Enforcement (Block Insecure Pod)',
+        content:
+          "Choose one control (disallow privileged pods or require runAsNonRoot) and enforce it with admission policy (Pod Security or policy-as-code).\n\n" +
+          "Success criteria:\n\n" +
+          "- Non-compliant pod is rejected\n" +
+          "- The error message tells developers what to fix\n" +
+          "- An exception path exists (separate namespace with approvals)"
+      },
+      {
+        title: 'Lab 3: Audit Evidence Checklist',
+        content:
+          "Define what evidence you would produce for an audit:\n\n" +
+          "- RBAC bindings for key roles\n" +
+          "- Audit log retention settings\n" +
+          "- Policy definitions (versioned in Git)\n" +
+          "- Change management (PR approvals + CI results)\n\n" +
+          "Deliverable: a short ‘evidence pack’ outline."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Compliance Readiness)',
+        content:
+          "Before production compliance review:\n\n" +
+          "- RBAC is least privilege and tested\n" +
+          "- Policies block known-bad configurations\n" +
+          "- Audit logging is enabled/retained\n" +
+          "- Access to logs is restricted\n" +
+          "- Exception process is documented"
+      }
+    ],
+
+    commonMistakes: [
+      "Using cluster-admin broadly because it is convenient",
+      "No evidence retention strategy (logs overwritten too soon)",
+      "Policies exist but are not enforced (warn-only forever)",
+      "No exception process (shadow IT workarounds)",
+      "Conflating compliance with security (they overlap, but are not identical)"
+    ],
+
+    bestPractices: [
+      "Prove RBAC with tests (`kubectl auth can-i`)",
+      "Version policies in Git and enforce by default",
+      "Treat audit logs as sensitive data (restricted access + retention)",
+      "Document controls and exceptions",
+      "Automate evidence collection where possible"
+    ],
+
+    realWorldExample:
+      "**Scenario: Audit request after an incident**\n\n" +
+      "After a suspicious change, the team uses audit logs to identify the actor and the exact resource modifications. RBAC shows least privilege, and policy-as-code proves insecure deployments are blocked by default. Evidence is produced quickly because the controls are operational, not manual.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Compliance is provable enforcement + evidence\n" +
+      "2. RBAC reduces blast radius\n" +
+      "3. Policy-as-code prevents drift\n" +
+      "4. Exceptions must be controlled",
+
+    nextSteps:
+      "Next, apply these security controls to platform delivery by integrating scanning, signing, and policy gates into CI/CD and GitOps workflows."
+  },
+
+  'ml-basics-for-devops-engineers': {
+    introduction:
+      "Machine Learning (ML) feels mysterious until you view it as an engineering system: **data in → model out → predictions served**.\n\n" +
+      "As a DevOps/MLOps engineer, your job is not to invent algorithms — it’s to make training and inference **reproducible, observable, safe, and fast to iterate**. This lesson focuses on the lifecycle and the operational mindset.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Training jobs are expensive; mistakes waste time and compute\n" +
+      "- Inference is a production service with latency/SLA requirements\n" +
+      "- Data issues silently destroy model quality\n" +
+      "- Reproducibility is the difference between debugging and guessing\n\n" +
+      "If you can’t reproduce a model, you can’t reliably deploy or roll it back.",
+
+    concepts: [
+      {
+        title: 'The ML Lifecycle (Data → Train → Evaluate → Deploy → Monitor)',
+        content:
+          "Training is only one phase. Production ML requires versioning data/code, tracking experiments, packaging artifacts, and monitoring drift and performance over time."
+      },
+      {
+        title: 'Training vs Inference (Different Systems)',
+        content:
+          "Training optimizes for throughput and experimentation. Inference optimizes for latency, reliability, and cost.\n\n" +
+          "Common failures come from mixing assumptions: e.g., training code in a notebook vs inference code in a service with strict inputs."
+      },
+      {
+        title: 'Evaluation Metrics (Pick the Right One)',
+        content:
+          "Accuracy is often misleading. Use precision/recall for imbalanced classes, F1 when you need balance, and consider ROC-AUC/PR-AUC for ranking or thresholds.\n\n" +
+          "Metrics should reflect business cost of false positives vs false negatives."
+      },
+      {
+        title: 'Data Leakage, Skew, and Drift',
+        content:
+          "Data leakage: the model accidentally learns future information. Skew: training data differs from serving inputs. Drift: distributions change over time.\n\n" +
+          "Operationally, these look like: good offline metrics but poor production outcomes."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Run a Minimal Training + Save Artifact',
+        content:
+          "Goal: train a small model, evaluate it, and persist an artifact you can deploy.\n\n" +
+          "Checklist:\n\n" +
+          "- Split train/test deterministically (`random_state`)\n" +
+          "- Print at least 2 metrics (e.g., accuracy + recall)\n" +
+          "- Save model artifact to a file (e.g., `model.joblib`)\n" +
+          "- Record dependencies (requirements)\n\n" +
+          "Deliverable: the artifact and a short note describing data, metrics, and parameters."
+      },
+      {
+        title: 'Lab 2: Inference Contract (Validate Inputs)',
+        content:
+          "Write a tiny `predict()` wrapper that:\n\n" +
+          "- Loads the saved model\n" +
+          "- Validates feature shape/types\n" +
+          "- Returns a stable output schema (e.g., JSON with a score)\n\n" +
+          "Success criteria: incorrect inputs fail fast with a clear message."
+      },
+      {
+        title: 'Lab 3: Evaluation Drill (Threshold Choice)',
+        content:
+          "Pick a threshold (e.g., 0.6) and compute a confusion matrix.\n\n" +
+          "Explain: what costs more in your domain — false positives or false negatives?\n\n" +
+          "Deliverable: a one-paragraph justification for the chosen threshold."
+      },
+      {
+        title: 'Lab 4: Definition of Done (ML Basics)',
+        content:
+          "Before you call a model ‘ready for deployment’:\n\n" +
+          "- Dataset, code, and parameters are versioned\n" +
+          "- Training run is reproducible\n" +
+          "- Metrics are appropriate for the problem\n" +
+          "- Inference contract is defined and validated\n" +
+          "- You can roll forward/back by swapping artifacts"
+      }
+    ],
+
+    commonMistakes: [
+      "Using accuracy as the only metric",
+      "Evaluating on data that leaked target information",
+      "No fixed random seed (non-reproducible results)",
+      "Assuming inference inputs match training features without validation",
+      "Saving a model without recording dependencies and preprocessing steps"
+    ],
+
+    bestPractices: [
+      "Treat training as a pipeline with versioned inputs and outputs",
+      "Define an inference contract and validate requests",
+      "Choose metrics that map to business cost",
+      "Persist artifacts and dependencies for rollback",
+      "Plan monitoring early: drift, latency, errors"
+    ],
+
+    realWorldExample:
+      "**Scenario: Great offline metrics, bad production**\n\n" +
+      "A model scores 95% accuracy offline, but conversions drop after deployment. Investigation shows training data contained a feature derived from future events (leakage). With reproducible runs and proper dataset versioning, the team pinpoints the issue and retrains with corrected features.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. ML is a lifecycle, not just training\n" +
+      "2. Training and inference optimize for different goals\n" +
+      "3. Metrics must match the problem and costs\n" +
+      "4. Reproducibility is mandatory for production",
+
+    nextSteps:
+      "Next, build the Python operational toolbox (environments, notebooks-to-scripts, and data inspection) so your ML workflows stay repeatable and debuggable."
+  },
+
+  'python-for-ml-operations': {
+    introduction:
+      "MLOps is as much about Python engineering as it is about ML. The fastest way to lose days is environment drift, unpinned dependencies, and notebooks that can’t be reproduced.\n\n" +
+      "This lesson gives you a practical toolkit: environments, dependency capture, data inspection with pandas, and turning notebook logic into scripts.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- ‘It works on my machine’ becomes ‘it worked last week’\n" +
+      "- ML code often mixes data processing + modeling + evaluation\n" +
+      "- Notebooks hide state; production needs scripts and modules\n\n" +
+      "Good Python ops practices make ML pipelines stable and automatable.",
+
+    concepts: [
+      {
+        title: 'Environment Reproducibility',
+        content:
+          "Use isolated environments and capture dependencies. For small projects, `venv + requirements.txt` is fine. As maturity grows, add lockfiles and build artifacts (containers)."
+      },
+      {
+        title: 'Notebook Discipline',
+        content:
+          "Notebooks are great for exploration, but production needs deterministic, parameterized runs.\n\n" +
+          "A good pattern: notebook explores → script trains → CI runs the script."
+      },
+      {
+        title: 'Data Inspection as a First-Class Step',
+        content:
+          "Before modeling, inspect shape, types, nulls, and basic distributions. Many ‘ML problems’ are actually data quality problems."
+      },
+      {
+        title: 'Packaging Your Work (Functions, Modules, Main Guard)',
+        content:
+          "Write code that can run as a script and be imported as a module. Use `if __name__ == '__main__':` to keep execution explicit."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Create an Environment + Capture Dependencies',
+        content:
+          "Create a virtual environment, install dependencies, and output a `requirements.txt`.\n\n" +
+          "Success criteria:\n\n" +
+          "- A new machine can recreate the env from `requirements.txt`\n" +
+          "- You can print versions for pandas/numpy/sklearn\n" +
+          "- You can explain what goes into the environment vs the code repo"
+      },
+      {
+        title: 'Lab 2: Data Audit Checklist (pandas)',
+        content:
+          "Given a CSV, answer:\n\n" +
+          "- What is the schema (columns + types)?\n" +
+          "- Where are missing values?\n" +
+          "- Are numeric ranges reasonable?\n" +
+          "- Any obvious leakage fields?\n\n" +
+          "Deliverable: a short audit summary."
+      },
+      {
+        title: 'Lab 3: Turn Notebook Logic into a Script',
+        content:
+          "Create `train.py` with a `run_training(data_path)` function and a main guard.\n\n" +
+          "Success criteria:\n\n" +
+          "- Running `python train.py` produces a saved artifact\n" +
+          "- Code can be imported (no side effects on import)\n" +
+          "- Inputs are passed as parameters (not hard-coded)"
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Python for MLOps)',
+        content:
+          "Before you automate the pipeline:\n\n" +
+          "- Dependencies are captured and reproducible\n" +
+          "- Training can run headlessly (no notebook-only state)\n" +
+          "- Data audit is repeatable\n" +
+          "- Artifacts are written to known locations\n" +
+          "- Logs are readable and useful"
+      }
+    ],
+
+    commonMistakes: [
+      "Installing packages globally (polluting environments)",
+      "Not pinning dependencies (silent breaking changes)",
+      "Notebook-only training with hidden state",
+      "Skipping data inspection and debugging later",
+      "Hard-coding file paths and magic constants"
+    ],
+
+    bestPractices: [
+      "Use isolated environments (venv/conda) per project",
+      "Capture dependencies (requirements/lockfile) and versions",
+      "Keep training runnable as a script",
+      "Audit data before modeling",
+      "Write functions for testability and reuse"
+    ],
+
+    realWorldExample:
+      "**Scenario: Pipeline breaks after a dependency upgrade**\n\n" +
+      "A training job starts failing because a library changed defaults in a minor release. With pinned dependencies and a reproducible environment, the team can recreate the previous run, identify the version change, and roll forward safely.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Reproducible environments prevent wasted debugging\n" +
+      "2. Notebooks are for exploration; scripts are for automation\n" +
+      "3. Data audits catch issues early\n" +
+      "4. Python structure enables reliable pipelines",
+
+    nextSteps:
+      "Next, you’ll track experiments, version data, and turn these scripts into repeatable MLOps pipelines with proper lineage and artifacts."
+  },
+
+  'ml-lifecycle-mlops-principles': {
+    introduction:
+      "MLOps exists because ML systems have **more moving parts** than typical software: data changes, models change, and performance degrades even when code stays the same.\n\n" +
+      "This lesson ties the ML lifecycle to the operational capabilities you need in real teams: lineage, reproducibility, automation, and governance.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Without lineage, you can’t answer ‘what produced this model?’\n" +
+      "- Without reproducibility, you can’t debug or roll back\n" +
+      "- Without monitoring, performance silently decays\n" +
+      "- Without governance, audits and approvals become chaos\n\n" +
+      "The goal is consistent, fast iteration without sacrificing reliability.",
+
+    concepts: [
+      {
+        title: 'Lifecycle as an Engineering System',
+        content:
+          "Every production model should have: versioned training data, versioned code, tracked experiments, stored artifacts, an inference contract, and monitoring."
+      },
+      {
+        title: 'MLOps vs DevOps (What’s Extra?)',
+        content:
+          "DevOps versions code and deploys services. MLOps additionally versions data and models, tracks experiments/metrics, and manages drift/performance over time."
+      },
+      {
+        title: 'Core Capabilities (The MLOps Checklist)',
+        content:
+          "Reproducibility, lineage, automated pipelines, artifact storage, model registry, deployment strategies, monitoring, and access control."
+      },
+      {
+        title: 'Failure Modes (What Breaks in Production)',
+        content:
+          "Data leakage/skew, dependency drift, silent input schema changes, model drift, and untracked ‘hotfix’ retrains."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Artifact Map for a Model',
+        content:
+          "Choose a simple model and write down what must be versioned:\n\n" +
+          "- Dataset snapshot\n" +
+          "- Training code commit\n" +
+          "- Hyperparameters\n" +
+          "- Metrics report\n" +
+          "- Model artifact\n\n" +
+          "Deliverable: a one-page ‘lineage sheet’ for the model."
+      },
+      {
+        title: 'Lab 2: Define an Inference Contract',
+        content:
+          "Define request/response schema for inference:\n\n" +
+          "- Feature names/types\n" +
+          "- Optional vs required fields\n" +
+          "- Output schema and error handling\n\n" +
+          "Deliverable: a short JSON schema or OpenAPI snippet."
+      },
+      {
+        title: 'Lab 3: Monitoring Brainstorm (Signals)',
+        content:
+          "List monitoring signals you need:\n\n" +
+          "- Service health (latency, errors)\n" +
+          "- Data quality (nulls, ranges)\n" +
+          "- Drift (feature distributions)\n" +
+          "- Performance (delayed labels, business KPIs)\n\n" +
+          "Deliverable: a minimal dashboard plan."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (MLOps Principles)',
+        content:
+          "Before you operationalize ML:\n\n" +
+          "- Lineage is defined (data/code/model)\n" +
+          "- Experiments are tracked\n" +
+          "- Artifacts are stored and versioned\n" +
+          "- Deployment path exists\n" +
+          "- Monitoring signals are identified"
+      }
+    ],
+
+    commonMistakes: [
+      "Treating ML as a one-time training job",
+      "No clear ownership for data and labels",
+      "Shipping models without an inference contract",
+      "Retraining without tracking datasets and parameters",
+      "No plan for drift and performance decay"
+    ],
+
+    bestPractices: [
+      "Always capture lineage (data + code + params + artifacts)",
+      "Use a model registry and promotion workflow",
+      "Automate retraining and evaluation with gates",
+      "Monitor both service SLOs and ML signals",
+      "Create a repeatable release process for models"
+    ],
+
+    realWorldExample:
+      "**Scenario: Sudden drop in model quality**\n\n" +
+      "A model’s business KPI drops after a data source changes format. Teams with an inference contract and data-quality checks catch the schema change early, and with tracked lineage they can quickly identify the last good model/data snapshot and roll back.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. MLOps adds data + model governance to DevOps\n" +
+      "2. Lineage and reproducibility enable safe iteration\n" +
+      "3. Monitoring is required because data changes\n" +
+      "4. A model needs a release process like software",
+
+    nextSteps:
+      "Next, implement experiment tracking with MLflow so every run has parameters, metrics, and artifacts you can compare and promote."
+  },
+
+  'experiment-tracking-with-mlflow': {
+    introduction:
+      "Experiment tracking turns ML from ‘notebook chaos’ into an engineering workflow. MLflow provides a practical baseline: log parameters, metrics, artifacts, and optionally register models for promotion.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- You can compare runs objectively\n" +
+      "- You can reproduce a specific result later\n" +
+      "- You can promote models with traceable evidence\n\n" +
+      "Without tracking, teams repeat work and can’t debug regressions.",
+
+    concepts: [
+      {
+        title: 'Runs, Parameters, Metrics, Artifacts',
+        content:
+          "A run is a single experiment execution. You log parameters (inputs), metrics (outputs), and artifacts (model files, plots, reports)."
+      },
+      {
+        title: 'Tracking Server vs Local Store',
+        content:
+          "You can start locally, but teams quickly move to a shared tracking server so results are centralized and auditable."
+      },
+      {
+        title: 'Model Registry (Promotion Workflow)',
+        content:
+          "Register model versions and promote them across stages (e.g., Staging → Production) with approvals and evaluation gates."
+      },
+      {
+        title: 'What to Log (Practical Minimum)',
+        content:
+          "Always log: dataset version/identifier, code version (commit), key parameters, primary metrics, and the trained artifact."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Start MLflow UI and Run Training',
+        content:
+          "Start `mlflow ui` and run a training script that logs at least:\n\n" +
+          "- 2 parameters\n" +
+          "- 1+ metrics\n" +
+          "- The model artifact\n\n" +
+          "Success criteria: you can see the run in the UI and download the artifact."
+      },
+      {
+        title: 'Lab 2: Compare Two Runs',
+        content:
+          "Change a parameter (e.g., regularization strength) and run again.\n\n" +
+          "Deliverable: a short comparison explaining why you chose the better run."
+      },
+      {
+        title: 'Lab 3: Add Lineage Fields',
+        content:
+          "Add tags to the run (dataset version, git commit, environment).\n\n" +
+          "Success criteria: you can answer ‘what produced this run?’ from the UI alone."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (MLflow)',
+        content:
+          "Before adopting MLflow in a team:\n\n" +
+          "- Standard set of logged fields is agreed\n" +
+          "- Runs are comparable (same metrics definitions)\n" +
+          "- Artifacts are stored durably\n" +
+          "- Registry stages/promotion criteria exist"
+      }
+    ],
+
+    commonMistakes: [
+      "Logging metrics without recording dataset and code version",
+      "Changing metric definitions between runs",
+      "Tracking locally only (no shared evidence)",
+      "No promotion criteria (best run becomes ‘latest run’)",
+      "Forgetting to log artifacts (can’t reproduce deployment)"
+    ],
+
+    bestPractices: [
+      "Define a run template: tags, params, and required metrics",
+      "Log dataset identifiers and git commits",
+      "Store artifacts in durable storage",
+      "Use a registry with staged promotion",
+      "Automate evaluation gates in CI"
+    ],
+
+    realWorldExample:
+      "**Scenario: Regression after retraining**\n\n" +
+      "A weekly retrain produces worse outcomes. With MLflow, the team compares runs, sees the dataset version changed, and quickly rolls back to the previous model while investigating the data issue.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Tracking makes experimentation reproducible\n" +
+      "2. Log lineage (data + code + params) with metrics\n" +
+      "3. Artifacts enable deployment and rollback\n" +
+      "4. Registries create promotion discipline",
+
+    nextSteps:
+      "Next, version datasets and build reproducible pipelines with DVC so data changes are controlled and traceable."
+  },
+
+  'data-versioning-with-dvc': {
+    introduction:
+      "DVC brings Git-like workflows to data and ML pipelines. It lets you version large datasets without stuffing them into Git, and it can define reproducible pipelines that you can rerun consistently.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Most ML failures are data failures\n" +
+      "- Teams need to reproduce a model with the exact dataset snapshot\n" +
+      "- Pipelines reduce manual steps and hidden notebook state\n\n" +
+      "If you can’t trace data changes, you can’t trust model changes.",
+
+    concepts: [
+      {
+        title: 'DVC vs Git (Complementary)',
+        content:
+          "Git versions small text/code. DVC tracks large files by storing pointers in Git and the actual data in a DVC remote (S3/GCS/local)."
+      },
+      {
+        title: 'Data Snapshots and Reproducibility',
+        content:
+          "A dataset version should be referenceable. DVC enables switching between dataset states via Git commits that contain `.dvc` pointer files."
+      },
+      {
+        title: 'Pipelines (Stages, Dependencies, Outputs)',
+        content:
+          "DVC stages create a DAG: prepare → train → evaluate. `dvc repro` rebuilds only what changed."
+      },
+      {
+        title: 'Metrics Tracking',
+        content:
+          "DVC can track metrics files (JSON/YAML) across commits so you can compare results tied to data changes."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Version a Dataset',
+        content:
+          "Initialize DVC, add a dataset, and configure a DVC remote.\n\n" +
+          "Success criteria: data is stored in the DVC remote, and Git contains only the pointer file."
+      },
+      {
+        title: 'Lab 2: Build a 3-Stage Pipeline',
+        content:
+          "Create stages `prepare`, `train`, and `eval`.\n\n" +
+          "Run `dvc repro` and confirm only the necessary stages rerun when you change upstream inputs."
+      },
+      {
+        title: 'Lab 3: Compare Metrics Across Commits',
+        content:
+          "Record a metrics file (e.g., `reports/metrics.json`) and use DVC metrics comparison to see changes across versions.\n\n" +
+          "Deliverable: a brief note explaining why metrics changed (data vs code)."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (DVC)',
+        content:
+          "Before adopting DVC in a team:\n\n" +
+          "- Remote storage is configured and accessible\n" +
+          "- Dataset versions are tied to Git commits\n" +
+          "- Pipelines are reproducible via `dvc repro`\n" +
+          "- Metrics are tracked and comparable"
+      }
+    ],
+
+    commonMistakes: [
+      "Forgetting to push data to the remote",
+      "Tracking data without clear dataset naming/versioning",
+      "Pipelines that aren’t deterministic (randomness not controlled)",
+      "Mixing manual steps and DVC stages",
+      "No team conventions for remotes and storage"
+    ],
+
+    bestPractices: [
+      "Define a dataset versioning convention",
+      "Use DVC stages for repeatability",
+      "Store metrics in machine-readable files",
+      "Control randomness (seeds) for reproducibility",
+      "Document how to pull data and reproduce runs"
+    ],
+
+    realWorldExample:
+      "**Scenario: ‘Same code, different results’**\n\n" +
+      "A model behaves differently after retraining. With DVC, the team discovers the dataset snapshot changed because of upstream filtering logic. They revert to the previous dataset version and fix the pipeline stage.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. DVC versions data without bloating Git\n" +
+      "2. Pipelines create repeatable workflows\n" +
+      "3. Metrics tie results to data versions\n" +
+      "4. Reproducibility requires deterministic stages",
+
+    nextSteps:
+      "Next, serve a model behind an API and containerize it so you have a consistent runtime for deployment and scaling."
+  },
+
+  'model-serving-basics': {
+    introduction:
+      "Model serving turns a trained artifact into a production service. The core idea is simple: load an artifact, validate inputs, return predictions — but production requires reliability, observability, and repeatable packaging.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Inference is a user-facing SLA service\n" +
+      "- Input schema drift can break predictions silently\n" +
+      "- Packaging determines whether deployments are reproducible\n\n" +
+      "Serving is where ML meets production reality.",
+
+    concepts: [
+      {
+        title: 'Inference Contract (Schema + Validation)',
+        content:
+          "Define what inputs are accepted and what outputs look like. Validate early to fail fast and prevent garbage-in predictions."
+      },
+      {
+        title: 'Health, Readiness, and Observability',
+        content:
+          "Expose health endpoints, log requests safely (no secrets/PII), and emit latency/error metrics."
+      },
+      {
+        title: 'Artifact Management',
+        content:
+          "Serving must load the correct model version. Tie deployments to model artifact versions and include rollback strategy."
+      },
+      {
+        title: 'Containerization for Repeatable Runtime',
+        content:
+          "Containers reduce environment drift. Build minimal images, pin dependencies, and run as non-root when possible."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Build a Minimal Inference API',
+        content:
+          "Create a FastAPI service with `/health` and `/predict`.\n\n" +
+          "Success criteria: curl works and responses are stable JSON."
+      },
+      {
+        title: 'Lab 2: Add Validation + Failure Modes',
+        content:
+          "Validate feature vector length and types.\n\n" +
+          "Deliverable: demonstrate one bad request that returns a clear error response."
+      },
+      {
+        title: 'Lab 3: Containerize and Run Locally',
+        content:
+          "Build a Docker image and run it.\n\n" +
+          "Success criteria: API works from inside the container and ports are exposed correctly."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Serving)',
+        content:
+          "Before production serving:\n\n" +
+          "- Inference contract is documented\n" +
+          "- Health endpoints exist\n" +
+          "- Artifact version is explicit\n" +
+          "- Container build is reproducible\n" +
+          "- Basic metrics/logging exist"
+      }
+    ],
+
+    commonMistakes: [
+      "Serving without input validation",
+      "Loading ‘latest’ model implicitly (no version pinning)",
+      "No health checks (hard to operate)",
+      "Logging raw payloads with sensitive data",
+      "Environment drift (works locally, fails in deploy)"
+    ],
+
+    bestPractices: [
+      "Define and validate the inference contract",
+      "Pin model versions and dependencies",
+      "Expose health/readiness endpoints",
+      "Instrument latency and error rates",
+      "Containerize for consistent runtime"
+    ],
+
+    realWorldExample:
+      "**Scenario: Model version rollback**\n\n" +
+      "A new model version increases error rates due to a preprocessing mismatch. With versioned artifacts and a stable serving container, the team rolls back quickly to the previous artifact and resolves the preprocessing contract mismatch.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Serving is a production API with SLAs\n" +
+      "2. Validation prevents silent failure\n" +
+      "3. Versioned artifacts enable rollbacks\n" +
+      "4. Containers make runtimes repeatable",
+
+    nextSteps:
+      "Next, compose these pieces into automated ML pipelines (e.g., Kubeflow/Airflow) that produce trackable artifacts from versioned data."
+  },
+
+  'kubeflow-pipelines': {
+    introduction:
+      "Kubeflow Pipelines (KFP) is an ML-native workflow engine on Kubernetes. It helps you turn ad-hoc training scripts into **repeatable, parameterized pipelines** with artifact lineage.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Pipelines remove manual ‘run step A then B’ workflows\n" +
+      "- Artifacts become traceable (which data produced which model?)\n" +
+      "- Parameterization enables systematic experimentation\n" +
+      "- Kubernetes execution makes scaling and isolation easier\n\n" +
+      "If you can compile and run it, you can automate and reproduce it.",
+
+    concepts: [
+      {
+        title: 'Components, Parameters, and Artifacts',
+        content:
+          "A pipeline is a DAG of components. Components consume parameters (small config) and artifacts (files/models/reports). Avoid passing large payloads as parameters."
+      },
+      {
+        title: 'Compilation vs Execution',
+        content:
+          "You typically author a pipeline in Python, compile to a pipeline spec (YAML/JSON), and then run it in a Kubeflow environment."
+      },
+      {
+        title: 'Caching and Reuse',
+        content:
+          "KFP can reuse cached step outputs when inputs don’t change. This speeds iteration but requires idempotent, deterministic components."
+      },
+      {
+        title: 'Operational Reality: It’s Kubernetes',
+        content:
+          "Most ‘KFP issues’ are Kubernetes issues: image pull failures, RBAC permissions, resource limits, or artifact store connectivity."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Compile a Minimal Pipeline',
+        content:
+          "Create a 2–3 step pipeline (prepare → train → evaluate) and compile it to a pipeline YAML.\n\n" +
+          "Success criteria:\n\n" +
+          "- Pipeline compiles without errors\n" +
+          "- You can explain what is a parameter vs artifact\n" +
+          "- Outputs are written to artifact paths"
+      },
+      {
+        title: 'Lab 2: Artifact Passing',
+        content:
+          "Pass a ‘prepared dataset’ artifact (file path) to a ‘train’ component, and produce a model artifact as output.\n\n" +
+          "Deliverable: a simple artifact chain that you can point to for lineage."
+      },
+      {
+        title: 'Lab 3: Parameterize a Run',
+        content:
+          "Add parameters (e.g., learning rate, epochs) and compile again.\n\n" +
+          "Explain how you’d run hyperparameter sweeps (even if you don’t implement them yet)."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (KFP)',
+        content:
+          "Before adopting KFP:\n\n" +
+          "- Components are containerized and deterministic\n" +
+          "- Artifacts are stored durably\n" +
+          "- Resource limits are defined\n" +
+          "- Logging and failure handling is clear\n" +
+          "- You have a path to promote artifacts to serving"
+      }
+    ],
+
+    commonMistakes: [
+      "Passing large datasets via parameters or logs",
+      "Non-deterministic components (random seeds not controlled)",
+      "No resource requests/limits (OOM kills)",
+      "Assuming images exist in-cluster (not pushed/tagged)",
+      "Treating pipeline specs as runtime logs (no artifact store)"
+    ],
+
+    bestPractices: [
+      "Use artifacts for data/models and parameters for small configs",
+      "Make components idempotent and deterministic",
+      "Pin container images and dependencies",
+      "Define resource requests/limits and timeouts",
+      "Design a promotion path from pipeline output → registry → deployment"
+    ],
+
+    realWorldExample:
+      "**Scenario: Reproducing a production model**\n\n" +
+      "An incident requires reproducing the model currently in production. With KFP, you can trace the exact pipeline run, its parameters, and its dataset artifacts, then re-run the pipeline deterministically to verify behavior before applying fixes.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. KFP pipelines make ML workflows repeatable\n" +
+      "2. Artifacts provide lineage for models and datasets\n" +
+      "3. Caching and parameters speed iteration\n" +
+      "4. Most failures are Kubernetes operational issues",
+
+    nextSteps:
+      "Next, orchestrate ML workflows with Airflow for scheduling, backfills, and operational reliability patterns commonly used for batch ML."
+  },
+
+  'airflow-for-ml': {
+    introduction:
+      "Apache Airflow is a general-purpose workflow orchestrator. In ML, it’s commonly used for **batch pipelines** (data prep, training, evaluation) and integrating with external systems.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Scheduling and backfills are critical for batch ML\n" +
+      "- Retries and alerting improve operational reliability\n" +
+      "- DAG structure provides visibility and auditing\n\n" +
+      "Airflow excels when you need time-based orchestration and integration across systems.",
+
+    concepts: [
+      {
+        title: 'DAGs, Tasks, and Schedules',
+        content:
+          "A DAG defines tasks and dependencies. Airflow executes tasks on a schedule or manually. Think in terms of idempotent tasks that can be retried safely."
+      },
+      {
+        title: 'Retries, SLAs, and Backfills',
+        content:
+          "Airflow provides operational primitives: retries for transient failures, SLAs for alerts, and backfills to re-run historical partitions when logic changes."
+      },
+      {
+        title: 'Artifacts and XComs (Keep It Small)',
+        content:
+          "Use XComs for small metadata (paths/IDs), not large datasets. Store large artifacts in object storage and pass references."
+      },
+      {
+        title: 'Airflow vs Kubeflow (When to Use Which)',
+        content:
+          "Airflow: scheduling + integration + batch orchestration. Kubeflow: ML-native artifact lineage and Kubernetes-first execution for ML pipelines. Many teams use both."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Build a 3-Task ML DAG',
+        content:
+          "Create a DAG with tasks: prepare → train → evaluate.\n\n" +
+          "Success criteria: the DAG loads, tasks run in order, and outputs are visible in logs."
+      },
+      {
+        title: 'Lab 2: Make Tasks Idempotent',
+        content:
+          "Update tasks to write outputs to run-specific paths and avoid non-deterministic behavior.\n\n" +
+          "Deliverable: explain why retries will not corrupt results."
+      },
+      {
+        title: 'Lab 3: Add Operational Hardening',
+        content:
+          "Add: retries, retry delay, timeouts, and basic failure alerting (conceptually if tooling isn’t present).\n\n" +
+          "Deliverable: a DAG config snippet showing these settings."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Airflow ML)',
+        content:
+          "Before running ML pipelines on a schedule:\n\n" +
+          "- Tasks are idempotent\n" +
+          "- Artifacts are stored outside Airflow (paths/IDs in XCom)\n" +
+          "- Retries/timeouts are configured\n" +
+          "- Backfill strategy is documented\n" +
+          "- Ownership and alerting are clear"
+      }
+    ],
+
+    commonMistakes: [
+      "Passing large payloads via XCom",
+      "Non-idempotent tasks that break on retries",
+      "No clear data partitioning/backfill strategy",
+      "Hard-coded paths and credentials",
+      "Treating Airflow as a compute engine instead of an orchestrator"
+    ],
+
+    bestPractices: [
+      "Design tasks as pure functions of (data partition, code version, params)",
+      "Store artifacts in durable storage and pass references",
+      "Use retries/timeouts and clear alerting",
+      "Plan for backfills and reprocessing",
+      "Separate orchestration from compute (use containers/jobs for heavy work)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Monthly backfill after a bug fix**\n\n" +
+      "A bug in feature generation is fixed. With Airflow, the team triggers a backfill for the impacted partitions, retrains models for that period, and produces updated artifacts without manual reruns.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Airflow is great for scheduled, batch ML workflows\n" +
+      "2. Idempotency is essential for retries and backfills\n" +
+      "3. Pass references to artifacts, not big payloads\n" +
+      "4. Airflow and Kubeflow can complement each other",
+
+    nextSteps:
+      "Next, connect these orchestration patterns into a full end-to-end project pipeline: DVC for data, MLflow for experiments, and a containerized model service for deployment."
+  },
+
+  'model-serving-platforms': {
+    introduction:
+      "Model serving platforms exist to solve the hard parts of production inference: **versioning, routing, scaling, observability, and governance**.\n\n" +
+      "This lesson compares platform options (Seldon/KServe/TensorFlow Serving) and gives you a deployment + troubleshooting mindset that maps well to real Kubernetes operations.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Inference is a user-facing production service (SLOs apply)\n" +
+      "- You need safe rollouts (canary) and fast rollbacks\n" +
+      "- A model version must be traceable and auditable\n" +
+      "- Pre/post-processing and schema validation prevent silent failures\n\n" +
+      "A platform reduces bespoke glue code and standardizes operations.",
+
+    concepts: [
+      {
+        title: 'Platform vs Custom Serving',
+        content:
+          "Custom serving (FastAPI) is flexible but you own routing/scale/observability patterns. Platforms add standardized primitives: multi-model support, traffic splitting, autoscaling, and consistent deployment objects."
+      },
+      {
+        title: 'Versioning and Routing',
+        content:
+          "Serving is about *which* model answers a request. Platforms typically implement explicit model versioning and routing rules so you can canary and A/B test safely."
+      },
+      {
+        title: 'Operational Failure Modes',
+        content:
+          "Most incidents are operational: model fails to load, dependency mismatch, payload shape mismatch, CPU saturation, cold-start latency, or artifact store access failures."
+      },
+      {
+        title: 'Observability Requirements',
+        content:
+          "Track latency, error rate, and throughput like any API. Add ML-specific signals where possible: input schema errors, out-of-range features, drift indicators, and model version."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define an Inference Contract',
+        content:
+          "Define request/response schema for a prediction endpoint.\n\n" +
+          "Checklist:\n\n" +
+          "- Required fields and types\n" +
+          "- Error responses (400 vs 500)\n" +
+          "- Model version included in response or headers\n\n" +
+          "Deliverable: a short OpenAPI snippet or JSON schema."
+      },
+      {
+        title: 'Lab 2: Platform Deployment Walkthrough (Conceptual)',
+        content:
+          "Describe the objects you need to deploy on K8s:\n\n" +
+          "- Serving CRD (e.g., InferenceService/SeldonDeployment)\n" +
+          "- Artifact location (S3/MinIO/PVC)\n" +
+          "- Resource requests/limits\n" +
+          "- Autoscaling policy\n\n" +
+          "Deliverable: a YAML skeleton with placeholders."
+      },
+      {
+        title: 'Lab 3: Troubleshooting Drill',
+        content:
+          "Given an endpoint returning 500s:\n\n" +
+          "- Check pod status and events\n" +
+          "- Inspect logs for model-load errors\n" +
+          "- Validate request payload shape\n" +
+          "- Confirm artifact store permissions\n\n" +
+          "Deliverable: a step-by-step incident checklist."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Serving Platforms)',
+        content:
+          "Before production rollout:\n\n" +
+          "- Model version is explicit\n" +
+          "- Canary/rollback strategy exists\n" +
+          "- Health checks + autoscaling are configured\n" +
+          "- Latency/error metrics are emitted\n" +
+          "- Payload validation prevents silent corruption"
+      }
+    ],
+
+    commonMistakes: [
+      "Deploying ‘latest’ model without version pinning",
+      "No payload validation (silent bad predictions)",
+      "Ignoring cold-start and autoscaling behavior",
+      "No rollback strategy or traffic split controls",
+      "Assuming platform eliminates preprocessing/postprocessing needs"
+    ],
+
+    bestPractices: [
+      "Treat inference as an API product with SLOs",
+      "Version artifacts and include model version in telemetry",
+      "Use canaries and fast rollback",
+      "Instrument latency, errors, and request volume",
+      "Standardize contracts to reduce integration bugs"
+    ],
+
+    realWorldExample:
+      "**Scenario: Canary catches a model regression**\n\n" +
+      "A new model version increases error rate due to a serialization mismatch. With traffic splitting, only 5% of requests are impacted, alerts fire quickly, and the team rolls back to the prior version while fixing the artifact packaging.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Platforms standardize scaling, routing, and governance\n" +
+      "2. Versioning + canaries make rollouts safe\n" +
+      "3. Most failures are operational and debuggable\n" +
+      "4. Observability must include model context",
+
+    nextSteps:
+      "Next, optimize models for performance (latency, memory, cost) while preserving acceptable accuracy and stability."
+  },
+
+  'model-optimization': {
+    introduction:
+      "Model optimization is the discipline of making inference cheaper and faster while staying within acceptable quality. This usually means trading precision for performance (quantization), reducing model size (pruning), or improving runtime portability (ONNX/TFLite).",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Latency and cost determine whether ML is viable at scale\n" +
+      "- Optimization can break accuracy if not validated\n" +
+      "- Different hardware needs different formats and runtimes\n\n" +
+      "Optimization must be measured, not assumed.",
+
+    concepts: [
+      {
+        title: 'Baseline First (Measure Before You Change)',
+        content:
+          "Always establish a baseline: P50/P95 latency, throughput, memory, CPU, and accuracy metrics. Optimization without a baseline is guesswork."
+      },
+      {
+        title: 'Quantization Trade-offs',
+        content:
+          "INT8 quantization can massively speed CPU inference, but it may require calibration and can harm accuracy if the model is sensitive to reduced precision."
+      },
+      {
+        title: 'Portability via ONNX',
+        content:
+          "ONNX is useful when you want to decouple training framework from serving runtime (e.g., onnxruntime). Validate parity between original and converted outputs."
+      },
+      {
+        title: 'Quality Gates',
+        content:
+          "Treat optimization like a release: run test suites, compare metrics, and only promote if gates pass (accuracy threshold, latency improvement, no new failure modes)."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Create a Benchmark Harness',
+        content:
+          "Write a small benchmark that measures average latency and P95.\n\n" +
+          "Deliverable: baseline numbers for your model."
+      },
+      {
+        title: 'Lab 2: Define Quality Gates',
+        content:
+          "Decide acceptable thresholds, e.g.:\n\n" +
+          "- Accuracy drop ≤ 0.5%\n" +
+          "- P95 latency improves by ≥ 20%\n" +
+          "- Memory usage decreases\n\n" +
+          "Deliverable: written gates and a simple pass/fail report format."
+      },
+      {
+        title: 'Lab 3: Conversion/Optimization Plan (Conceptual)',
+        content:
+          "Pick one target: ONNX, quantization, or TFLite. Outline steps and how you would validate parity.\n\n" +
+          "Deliverable: a checklist including rollback strategy."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Optimization)',
+        content:
+          "Before promoting an optimized model:\n\n" +
+          "- Baseline metrics are captured\n" +
+          "- Optimized metrics are captured\n" +
+          "- Accuracy/quality gates pass\n" +
+          "- Runtime compatibility is validated\n" +
+          "- Rollback plan is ready"
+      }
+    ],
+
+    commonMistakes: [
+      "Optimizing without a baseline",
+      "Only measuring average latency (ignoring tails like P95/P99)",
+      "Skipping accuracy regression tests",
+      "Assuming conversion formats preserve outputs exactly",
+      "Ignoring operational constraints (CPU pinning, batch sizes, cold start)"
+    ],
+
+    bestPractices: [
+      "Benchmark with realistic payloads and concurrency",
+      "Use quality gates for promotion",
+      "Track model version and optimization method in metadata",
+      "Validate parity before and after conversion",
+      "Prefer simple wins first (better batching, better hardware, caching)"
+    ],
+
+    realWorldExample:
+      "**Scenario: Cost spike from inference traffic**\n\n" +
+      "Traffic grows 5× and inference costs spike. The team adds batching and quantization, cutting P95 latency and CPU usage while keeping accuracy within gates. The rollout is canaried and monitored, then promoted.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Optimization is measured, not assumed\n" +
+      "2. Quantization/ONNX/TFLite improve performance with trade-offs\n" +
+      "3. Quality gates protect accuracy\n" +
+      "4. Rollouts should be staged and monitored",
+
+    nextSteps:
+      "Next, run inference at batch scale with partitioned jobs and idempotent outputs so you can backfill predictions reliably."
+  },
+
+  'batch-inference-at-scale': {
+    introduction:
+      "Batch inference runs predictions over large datasets on a schedule (hourly/daily) or as backfills. The engineering challenge is not a single prediction — it’s **partitioning, repeatability, and cost control**.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Many real ML systems score offline (recommendations, risk scoring, analytics)\n" +
+      "- Backfills are common after bug fixes or new models\n" +
+      "- Poor partitioning and non-idempotent writes create data corruption\n\n" +
+      "Batch inference is where data engineering and MLOps meet.",
+
+    concepts: [
+      {
+        title: 'Online vs Batch',
+        content:
+          "Online focuses on latency per request. Batch focuses on throughput and determinism per partition (day/hour). Both require consistent preprocessing and versioned artifacts."
+      },
+      {
+        title: 'Partitioning and Idempotency',
+        content:
+          "Write outputs per partition and per model version. Prefer overwrite-per-partition to avoid duplicates when re-running."
+      },
+      {
+        title: 'Distribution of Model and Features',
+        content:
+          "Executors must use the same model version and preprocessing logic. Treat model artifacts and preprocessing as versioned dependencies."
+      },
+      {
+        title: 'Backfill Strategy',
+        content:
+          "Backfills should be explicit, trackable, and safe. Define what partitions to recompute, where outputs go, and how you validate results."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Design Partitioned Output Paths',
+        content:
+          "Define output paths like:\n\n" +
+          "- `predictions/day=YYYY-MM-DD/model=vX/`\n\n" +
+          "Deliverable: a naming convention you can use consistently."
+      },
+      {
+        title: 'Lab 2: Idempotent Batch Job Checklist',
+        content:
+          "Write down how your job remains safe under retries:\n\n" +
+          "- Overwrite partition outputs\n" +
+          "- Avoid append without dedupe\n" +
+          "- Use run_id for logs and metadata\n\n" +
+          "Deliverable: a checklist for safe reruns."
+      },
+      {
+        title: 'Lab 3: Consistency Check (Preprocessing)',
+        content:
+          "List the preprocessing steps and how they are versioned.\n\n" +
+          "Deliverable: a plan to ensure training/serving parity for batch runs."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Batch Inference)',
+        content:
+          "Before production batch inference:\n\n" +
+          "- Inputs and outputs are partitioned\n" +
+          "- Outputs are versioned by model\n" +
+          "- Job is idempotent\n" +
+          "- Artifacts are pinned\n" +
+          "- Backfill strategy is documented"
+      }
+    ],
+
+    commonMistakes: [
+      "Appending predictions without partitioning (duplicates)",
+      "Not versioning outputs by model version",
+      "Running backfills manually with no tracking",
+      "Preprocessing mismatch between training and batch scoring",
+      "No validation checks on output distributions"
+    ],
+
+    bestPractices: [
+      "Write outputs per partition and overwrite safely",
+      "Include model version in output paths",
+      "Validate outputs (counts, ranges, distribution checks)",
+      "Pin artifacts and preprocessing versions",
+      "Automate backfills with clear audit trail"
+    ],
+
+    realWorldExample:
+      "**Scenario: Historical backfill after feature bug**\n\n" +
+      "A feature generation bug is fixed and the last 90 days must be rescored. With partitioned outputs and an idempotent job, the team re-runs those partitions, writes outputs under a new model/version path, validates distributions, then swaps downstream consumers to the corrected dataset.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Batch inference requires partitioning and idempotency\n" +
+      "2. Outputs must be versioned by model\n" +
+      "3. Preprocessing parity is critical\n" +
+      "4. Backfills must be trackable and safe",
+
+    nextSteps:
+      "Next, build a feature store and validation layer so features are consistent for training and serving, and data quality failures are caught early."
+  },
+
+  'feature-store-concepts': {
+    introduction:
+      "Feature stores help teams reuse and serve features consistently across training and inference. They solve a common production problem: **training code and serving code compute features differently**, leading to skew, drift, and incidents.\n\n" +
+      "In this lesson you’ll learn the key concepts (entities, feature views, offline/online stores) and how they connect to point-in-time correctness and operational reliability.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Feature inconsistency is a top source of production ML failures\n" +
+      "- Teams waste time rebuilding the same features in different repos\n" +
+      "- Point-in-time correctness prevents leakage\n" +
+      "- Online serving needs low-latency, cached features\n\n" +
+      "A feature store is a reliability layer as much as it is a productivity tool.",
+
+    concepts: [
+      {
+        title: 'Offline vs Online Store',
+        content:
+          "Offline store: historical feature values for training and analysis (batch). Online store: low-latency lookups for production inference. Both should be consistent and versioned."
+      },
+      {
+        title: 'Entities, Feature Views, and Feature Services',
+        content:
+          "Entity = join key (e.g., customer_id). Feature view = definition + schema + TTL. Feature service = a bundle of features served together (serving set)."
+      },
+      {
+        title: 'Point-in-Time Correctness (Leakage Prevention)',
+        content:
+          "Training rows should only use information available up to the event timestamp. If features accidentally include future information, offline metrics look great but production fails."
+      },
+      {
+        title: 'Feature Lifecycle',
+        content:
+          "Features need ownership and lifecycle management: define → validate → version → materialize → monitor → deprecate. Treat feature changes as production changes."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Map Your Feature Landscape',
+        content:
+          "Pick a simple use case (fraud, churn, recommendations) and list:\n\n" +
+          "- Entities\n" +
+          "- Candidate features\n" +
+          "- Required freshness/latency\n" +
+          "- Offline vs online needs\n\n" +
+          "Deliverable: a one-page feature map."
+      },
+      {
+        title: 'Lab 2: Define a Feature Contract',
+        content:
+          "For 2–3 features, define:\n\n" +
+          "- Name and schema\n" +
+          "- Source tables/streams\n" +
+          "- TTL and freshness\n" +
+          "- Point-in-time rules\n\n" +
+          "Deliverable: a contract that downstream consumers can rely on."
+      },
+      {
+        title: 'Lab 3: Online Serving Readiness Checklist',
+        content:
+          "Evaluate what’s needed for online features:\n\n" +
+          "- Materialization schedule\n" +
+          "- Backfill strategy\n" +
+          "- Monitoring for freshness and missing keys\n" +
+          "- Operational ownership\n\n" +
+          "Deliverable: a runbook outline."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Feature Store)',
+        content:
+          "Before production adoption:\n\n" +
+          "- Feature schemas are versioned\n" +
+          "- Point-in-time correctness is enforced\n" +
+          "- Online store freshness is monitored\n" +
+          "- Backfills are safe and trackable\n" +
+          "- Deprecation process exists"
+      }
+    ],
+
+    commonMistakes: [
+      "Treating features as ad-hoc notebook code",
+      "No ownership or lifecycle for features",
+      "Ignoring point-in-time correctness and leaking future info",
+      "Serving features without freshness monitoring",
+      "Changing feature definitions without versioning"
+    ],
+
+    bestPractices: [
+      "Use contracts and versioning for features",
+      "Enforce point-in-time correctness",
+      "Monitor freshness, missing keys, and schema drift",
+      "Use feature services to standardize serving sets",
+      "Make backfills and materialization idempotent"
+    ],
+
+    realWorldExample:
+      "**Scenario: Training/serving skew incident**\n\n" +
+      "A model performs well offline but fails in production because the serving system computes `avg_spend_30d` differently. By migrating the feature to a shared feature store definition and serving it consistently online/offline, the team eliminates skew and stabilizes performance.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Feature stores reduce training/serving skew\n" +
+      "2. Point-in-time correctness prevents leakage\n" +
+      "3. Online/offline consistency is the main goal\n" +
+      "4. Features need ownership and lifecycle",
+
+    nextSteps:
+      "Next, implement data validation gates so bad data never reaches feature computation or training without being detected and handled."
+  },
+
+  'data-quality-validation': {
+    introduction:
+      "Data validation is your early warning system. In production ML, data changes constantly: new categories appear, distributions shift, and upstream pipelines break.\n\n" +
+      "This lesson focuses on pragmatic validation gates (schema, nulls, ranges, and distribution checks) and how to operationalize them with tools like Great Expectations and TFDV.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Bad data causes bad models and bad decisions\n" +
+      "- Schema drift breaks pipelines unexpectedly\n" +
+      "- Silent shifts degrade quality without obvious errors\n\n" +
+      "Validation gates turn unknown failures into known, actionable failures.",
+
+    concepts: [
+      {
+        title: 'Validation Types (Schema, Quality, Distribution)',
+        content:
+          "Schema checks ensure required columns and types. Quality checks cover nulls/ranges/uniqueness. Distribution checks catch drift-like changes and unusual spikes."
+      },
+      {
+        title: 'Fail Fast vs Warn (Gating Strategy)',
+        content:
+          "Not every issue should block the pipeline. Define thresholds for block vs warn so operations stay stable while still catching real issues."
+      },
+      {
+        title: 'Baselines and Expectations',
+        content:
+          "Expectations should be based on known-good data: schema snapshots, historical distributions, and business rules. Keep them versioned and reviewed like code."
+      },
+      {
+        title: 'Incident Response for Data Quality',
+        content:
+          "When a gate fails: identify impacted partitions, isolate upstream changes, pause dependent jobs if needed, backfill corrected data, and add a regression test (new expectation)."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define Critical Expectations',
+        content:
+          "Pick 5 expectations that would prevent the biggest failures:\n\n" +
+          "- Required columns present\n" +
+          "- Null rate thresholds\n" +
+          "- Value range bounds\n" +
+          "- Unique keys\n" +
+          "- Allowed categories\n\n" +
+          "Deliverable: an expectations list with thresholds."
+      },
+      {
+        title: 'Lab 2: Add a Validation Gate to a Pipeline',
+        content:
+          "Place validation between ‘data ingestion’ and ‘feature computation’.\n\n" +
+          "Success criteria:\n\n" +
+          "- Pipeline fails fast on schema break\n" +
+          "- Clear error message points to the failing rule\n" +
+          "- Outputs are not produced on failure"
+      },
+      {
+        title: 'Lab 3: Distribution Shift Alerting (Conceptual)',
+        content:
+          "Define 2 distribution alerts (e.g., mean shift > X%, category rate changes).\n\n" +
+          "Deliverable: a simple alert spec and who gets paged."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Validation)',
+        content:
+          "Before production:\n\n" +
+          "- Expectations are versioned and reviewed\n" +
+          "- Gating strategy is defined (block vs warn)\n" +
+          "- Failures generate actionable logs\n" +
+          "- Backfill and incident response are documented\n" +
+          "- Drift-like checks exist for key features"
+      }
+    ],
+
+    commonMistakes: [
+      "Only checking schema (ignoring quality/ranges)",
+      "Blocking the pipeline for every tiny shift (alert fatigue)",
+      "No baseline, so thresholds are arbitrary",
+      "Failures don’t have actionable error messages",
+      "No backfill or incident process for data regressions"
+    ],
+
+    bestPractices: [
+      "Start with a small set of high-value expectations",
+      "Version expectations and review changes",
+      "Use block vs warn thresholds intentionally",
+      "Treat validation failures like incidents with clear ownership",
+      "Add checks close to sources and before expensive steps"
+    ],
+
+    realWorldExample:
+      "**Scenario: Upstream schema change**\n\n" +
+      "An upstream team renames a column. Without validation, training silently uses a default value and model quality degrades. With schema gates, the pipeline fails immediately, the change is caught within minutes, and a backfill is executed after a fix.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Validation is essential for ML reliability\n" +
+      "2. Combine schema, quality, and distribution checks\n" +
+      "3. Use gates (block vs warn) to balance safety and uptime\n" +
+      "4. Operationalize failures with an incident process",
+
+    nextSteps:
+      "Next, monitor production models and data drift continuously to detect performance decay and trigger safe retraining workflows."
+  },
+
+  'model-performance-monitoring': {
+    introduction:
+      "Production ML requires two kinds of monitoring at the same time: **software reliability** (latency, errors, saturation) and **ML reliability** (data quality, drift, and model quality over time).\n\n" +
+      "This lesson shows how to structure monitoring so you can detect issues early, run safe rollouts (canary/A-B), and respond with clear runbooks.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- A model can ‘work’ (200 OK) while being wrong\n" +
+      "- Label feedback is delayed, so you must design for it\n" +
+      "- Rollouts need guardrails to avoid mass harm\n" +
+      "- Without runbooks, regressions become multi-day outages\n\n" +
+      "The goal is to detect regressions quickly and recover safely.",
+
+    concepts: [
+      {
+        title: 'Four Monitoring Layers',
+        content:
+          "1) Service SLOs: latency/error/throughput\n2) Data quality: schema/nulls/ranges\n3) Model quality: performance vs labels (delayed)\n4) Business KPIs: impact measures (conversion, loss, churn)."
+      },
+      {
+        title: 'Delayed Labels and Feedback Loops',
+        content:
+          "Most systems don’t have labels immediately. You typically log predictions with identifiers, then join later when labels arrive to compute real performance metrics."
+      },
+      {
+        title: 'Safe Rollouts (Shadow, Canary, A/B)',
+        content:
+          "Shadow: run new model without affecting users. Canary: small % of traffic. A/B: controlled experiment with success metrics + guardrails."
+      },
+      {
+        title: 'Runbooks and Ownership',
+        content:
+          "Monitoring without response is noise. Define owner, severity, stop conditions, and rollback procedures."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define SLOs and Guardrails',
+        content:
+          "Write down:\n\n" +
+          "- P95 latency target\n" +
+          "- Error rate target\n" +
+          "- Saturation signal (CPU/memory)\n" +
+          "- Business KPI guardrail\n\n" +
+          "Deliverable: an SLO + guardrail table."
+      },
+      {
+        title: 'Lab 2: Telemetry Schema for Predictions',
+        content:
+          "Define the minimum fields to log per request:\n\n" +
+          "- request_id / user_id\n" +
+          "- model_version\n" +
+          "- feature_version\n" +
+          "- timestamp\n" +
+          "- prediction + confidence\n" +
+          "- latency + status\n\n" +
+          "Deliverable: a JSON log schema or table schema."
+      },
+      {
+        title: 'Lab 3: Rollout Plan (Canary + Stop Conditions)',
+        content:
+          "Create a canary plan:\n\n" +
+          "- Start at 1–5% traffic\n" +
+          "- Compare metrics vs baseline\n" +
+          "- Define stop conditions (errors/latency/KPI)\n" +
+          "- Define rollback procedure\n\n" +
+          "Deliverable: a one-page rollout playbook."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Performance Monitoring)',
+        content:
+          "Before production:\n\n" +
+          "- SLOs and alerts exist\n" +
+          "- Prediction telemetry is logged with versioning\n" +
+          "- Label join pipeline is defined\n" +
+          "- Canary/A-B strategy exists\n" +
+          "- Incident runbook is written"
+      }
+    ],
+
+    commonMistakes: [
+      "Only monitoring latency/errors (ignoring correctness)",
+      "No model_version in logs (can’t correlate issues)",
+      "A/B tests without guardrails",
+      "No join strategy for delayed labels",
+      "Alerts without clear on-call ownership"
+    ],
+
+    bestPractices: [
+      "Monitor service + ML signals together",
+      "Log model and feature versions on every request",
+      "Use canaries and stop conditions",
+      "Design delayed-label evaluation pipelines",
+      "Keep runbooks short and executable"
+    ],
+
+    realWorldExample:
+      "**Scenario: Model rollout breaks conversion**\n\n" +
+      "A new model improves offline accuracy but reduces conversion after deployment. A canary detects KPI drop within minutes, rolls back traffic to the old model, and preserves revenue while the team analyzes telemetry and feature differences.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Monitoring must include correctness signals\n" +
+      "2. Delayed labels require explicit pipelines\n" +
+      "3. Safe rollouts reduce blast radius\n" +
+      "4. Runbooks turn alerts into recovery",
+
+    nextSteps:
+      "Next, detect data drift and define thresholds and response workflows so you can decide when to retrain or rollback confidently."
+  },
+
+  'data-drift-detection': {
+    introduction:
+      "Drift detection is a practical way to answer: ‘Are today’s inputs similar to what the model learned from?’\n\n" +
+      "You can detect drift without labels by comparing feature distributions over time, then decide whether to retrain, rollback, or adjust thresholds.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Drift is common (seasonality, product changes, user behavior)\n" +
+      "- Performance can decay silently\n" +
+      "- Alerts without response plans create noise\n\n" +
+      "Drift detection is useful only when paired with an action plan.",
+
+    concepts: [
+      {
+        title: 'Data vs Concept vs Label Drift',
+        content:
+          "Data drift: input distributions change. Concept drift: relationship changes. Label drift: label distribution changes.\n\nData drift can be detected without labels; concept drift typically requires labels or proxy outcomes."
+      },
+      {
+        title: 'Baselines and Windows',
+        content:
+          "Choose a baseline window (training data or recent ‘healthy’ period) and compare rolling windows (daily/weekly). Consistency here matters more than perfect statistics."
+      },
+      {
+        title: 'Thresholds and Alert Fatigue',
+        content:
+          "Set thresholds to be actionable. Start conservative, review incidents, and tune. Use severity tiers (warn vs page)."
+      },
+      {
+        title: 'Response Options',
+        content:
+          "Investigate upstream changes, validate data quality, retrain with new data, adjust thresholds, or rollback to a prior model depending on risk."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define Drift Baseline and Comparison Window',
+        content:
+          "Define:\n\n" +
+          "- Baseline dataset window (e.g., last 30 days)\n" +
+          "- Current window (e.g., last 24h)\n" +
+          "- Feature set to monitor\n\n" +
+          "Deliverable: a drift monitoring spec."
+      },
+      {
+        title: 'Lab 2: Identify Top Shifting Features',
+        content:
+          "Compute basic shifts (means, category frequency changes) and list the top 5 shifting features.\n\n" +
+          "Deliverable: a short report and a hypothesis about upstream causes."
+      },
+      {
+        title: 'Lab 3: Alert Tiers + Runbook',
+        content:
+          "Define warn vs page thresholds and write a response runbook.\n\n" +
+          "Deliverable: a short incident checklist (investigate → decide → act)."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Drift Detection)',
+        content:
+          "Before production:\n\n" +
+          "- Baselines/windows are defined\n" +
+          "- Drift checks run on schedule\n" +
+          "- Alerts map to action tiers\n" +
+          "- Runbook exists\n" +
+          "- Retrain/rollback path exists"
+      }
+    ],
+
+    commonMistakes: [
+      "No baseline (everything looks like drift)",
+      "Alerting on tiny shifts (noise)",
+      "No response plan (alerts ignored)",
+      "Conflating drift with guaranteed performance loss",
+      "Not monitoring key segments (drift in one cohort only)"
+    ],
+
+    bestPractices: [
+      "Start with a small set of critical features",
+      "Use alert tiers and tune thresholds over time",
+      "Combine drift with data quality gates",
+      "Segment monitoring (by region/product/cohort)",
+      "Link drift alerts to retraining/rollback procedures"
+    ],
+
+    realWorldExample:
+      "**Scenario: Seasonal drift**\n\n" +
+      "A holiday season changes user behavior and feature distributions. Drift alerts trigger a retrain using recent data, and the team can compare performance safely via canary rollout while maintaining service SLOs.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Drift checks compare distributions over time\n" +
+      "2. Thresholds must be actionable\n" +
+      "3. Drift signals require a response plan\n" +
+      "4. Labels are needed to confirm true performance impact",
+
+    nextSteps:
+      "Next, use explainability to debug model behavior, support audits, and investigate which features drive predictions and drift changes."
+  },
+
+  'model-explainability': {
+    introduction:
+      "Explainability helps you answer: ‘Why did the model decide this?’ It’s useful for debugging, trust, and in some domains, regulatory requirements.\n\n" +
+      "This lesson focuses on practical explainability: global vs local explanations, common pitfalls, and how to operationalize explanations safely.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Debugging: identify spurious correlations and leakage\n" +
+      "- Trust: stakeholders need understandable behavior\n" +
+      "- Compliance: audit decisions and sensitive feature handling\n\n" +
+      "Explainability is not causality — but it is extremely useful for operations.",
+
+    concepts: [
+      {
+        title: 'Global vs Local Explanations',
+        content:
+          "Global explains overall model behavior (feature importance). Local explains a single prediction (why this sample got this output). Both are useful for different workflows."
+      },
+      {
+        title: 'Pitfalls (Correlation ≠ Causation)',
+        content:
+          "Most explanation methods describe associations, not causal relationships. Document limitations and avoid over-claiming what an explanation proves."
+      },
+      {
+        title: 'Privacy and Sensitive Features',
+        content:
+          "Explanations can leak information. Ensure explanations are privacy-safe, and review sensitive features and fairness implications."
+      },
+      {
+        title: 'Operational Integration',
+        content:
+          "Store explanation outputs or summary stats with prediction logs for audit/debug. Include model version and feature schema version."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Choose an Explainability Use Case',
+        content:
+          "Pick one: debugging, audit, or customer transparency.\n\n" +
+          "Deliverable: define who consumes explanations and what questions they need answered."
+      },
+      {
+        title: 'Lab 2: Define Explanation Outputs',
+        content:
+          "Define outputs for local explanations:\n\n" +
+          "- top features contributing to the prediction\n" +
+          "- confidence/score\n" +
+          "- model version + feature schema version\n\n" +
+          "Deliverable: a JSON schema for explanation output."
+      },
+      {
+        title: 'Lab 3: Governance Checklist',
+        content:
+          "Answer:\n\n" +
+          "- Which features are sensitive?\n" +
+          "- Where are explanations stored?\n" +
+          "- Who can access them?\n" +
+          "- What is retained and for how long?\n\n" +
+          "Deliverable: a short governance note."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Explainability)',
+        content:
+          "Before production explainability:\n\n" +
+          "- Global + local use cases are defined\n" +
+          "- Outputs are versioned and privacy-safe\n" +
+          "- Sensitive features are reviewed\n" +
+          "- Limitations are documented\n" +
+          "- Explanations integrate with monitoring/audits"
+      }
+    ],
+
+    commonMistakes: [
+      "Treating explanations as causal proof",
+      "Exposing sensitive features in user-facing explanations",
+      "No versioning of explanation logic",
+      "Generating explanations but not using them operationally",
+      "Ignoring fairness and bias implications"
+    ],
+
+    bestPractices: [
+      "Use explainability for debugging and audits",
+      "Be explicit about limitations (correlation-only)",
+      "Version and secure explanation outputs",
+      "Review sensitive features and fairness impacts",
+      "Tie explanations to monitoring and incident workflows"
+    ],
+
+    realWorldExample:
+      "**Scenario: Audit request for a decision**\n\n" +
+      "A regulator requests justification for a high-risk decision. The team can retrieve the prediction record with model version, features used, and a local explanation summary, providing traceable evidence while protecting sensitive data.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Explainability supports debugging and audits\n" +
+      "2. Global and local explanations serve different needs\n" +
+      "3. Privacy and governance matter\n" +
+      "4. Explanations must be versioned and operationalized",
+
+    nextSteps:
+      "Next, extend monitoring to production observability by adding model dashboards, drift alerts, and automated retraining triggers tied to safe rollout workflows."
+  },
+
+  'gpu-management-in-kubernetes': {
+    introduction:
+      "GPUs are expensive, scarce, and easy to waste. In Kubernetes, you need the right plumbing (runtime + device plugin), the right scheduling rules (labels/taints/quotas), and operational playbooks (visibility + debugging) to run GPU workloads reliably.\n\n" +
+      "This lesson focuses on practical GPU ops: how to request GPUs correctly, how to validate the node has the right drivers/runtime, and how to reduce cost by improving utilization.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- GPU nodes can cost 10–100× CPU nodes\n" +
+      "- A single mis-scheduled pod can block a whole training queue\n" +
+      "- Driver/runtime mismatches create ‘works on my machine’ failures\n" +
+      "- Without quotas and placement controls, teams fight for capacity\n\n" +
+      "Your goal is predictable GPU scheduling and measurable utilization.",
+
+    concepts: [
+      {
+        title: 'Key Components (Runtime + Device Plugin)',
+        content:
+          "K8s schedules GPU resources via vendors (commonly `nvidia.com/gpu`). Nodes expose GPUs through a device plugin, and containers need a compatible runtime/driver stack. If the plugin is missing or drivers are wrong, pods will never start correctly."
+      },
+      {
+        title: 'Placement Controls (Labels, Taints, Node Pools)',
+        content:
+          "GPU workloads should land only on GPU nodes. Use labels (`accelerator=nvidia`) and taints (`gpu=true:NoSchedule`) so non-GPU workloads don’t take GPU capacity and GPU jobs don’t land on CPU nodes."
+      },
+      {
+        title: 'Right-Sizing and Utilization',
+        content:
+          "Most waste is not ‘idle node’ waste — it’s ‘underutilized GPU’ waste. Batch inference, pack jobs with proper resource requests, and measure GPU utilization to drive cost down."
+      },
+      {
+        title: 'Troubleshooting Patterns',
+        content:
+          "Common failures: pending pods (no capacity), image/runtime mismatch (crashloop), permissions, missing drivers, or plugin not advertising resources. Your playbook should start with `kubectl describe` and node resource inspection."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Validate GPU Nodes Advertise Resources',
+        content:
+          "Check node allocatable resources and confirm GPUs are visible.\n\n" +
+          "Deliverable: a screenshot or text capture showing `nvidia.com/gpu` allocatable > 0 on GPU nodes."
+      },
+      {
+        title: 'Lab 2: Run a GPU Smoke Test Pod',
+        content:
+          "Deploy a simple pod that runs `nvidia-smi`.\n\n" +
+          "Deliverable: pod logs showing GPU detected."
+      },
+      {
+        title: 'Lab 3: Enforce Placement Controls',
+        content:
+          "Add labels/taints and confirm GPU workloads schedule only on GPU nodes.\n\n" +
+          "Deliverable: `kubectl get pod -o wide` showing placement on a GPU node."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (GPU Ops)',
+        content:
+          "Before production GPU workloads:\n\n" +
+          "- GPU nodes advertise `nvidia.com/gpu`\n" +
+          "- Smoke test passes (`nvidia-smi`)\n" +
+          "- Node pools + taints/labels enforce placement\n" +
+          "- Quotas/limits prevent noisy neighbors\n" +
+          "- Runbook exists for Pending/CrashLoopBackOff"
+      }
+    ],
+
+    commonMistakes: [
+      "Forgetting to request GPUs (pod runs on CPU unexpectedly)",
+      "No taints/labels (GPU nodes used for general workloads)",
+      "Driver/runtime mismatch causing CUDA failures",
+      "Not tracking GPU utilization (no cost feedback loop)",
+      "Over-requesting GPUs per job (queue starvation)"
+    ],
+
+    bestPractices: [
+      "Use node pools and enforce placement controls",
+      "Start with a GPU smoke test in every cluster",
+      "Measure utilization and iterate on batching/packing",
+      "Keep runbooks short and action-oriented",
+      "Use quotas and fair scheduling to avoid capacity fights"
+    ],
+
+    realWorldExample:
+      "**Scenario: Pods stuck Pending**\n\n" +
+      "A training job requests 2 GPUs but the cluster’s GPU nodes each have only 1 available due to fragmentation. By right-sizing requests and using a queue policy, the team avoids deadlocks and improves throughput without adding nodes.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. GPU reliability depends on runtime + device plugin\n" +
+      "2. Scheduling needs explicit placement controls\n" +
+      "3. Utilization is the biggest cost lever\n" +
+      "4. Runbooks make GPU issues recoverable",
+
+    nextSteps:
+      "Next, learn distributed training patterns so you can scale training beyond a single GPU or a single node while keeping runs reproducible."
+  },
+
+  'distributed-training': {
+    introduction:
+      "Distributed training lets you scale training throughput by splitting work across multiple GPUs and/or machines. The trade-off is operational complexity: networking, synchronization, failure handling, and reproducibility become first-class concerns.\n\n" +
+      "This lesson explains the mental model for data-parallel training (DDP-style), what usually breaks in production, and how to design runs that are debuggable.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Larger models and datasets require more compute\n" +
+      "- Training windows are often bounded (freshness/SLA)\n" +
+      "- Distributed failures can waste hours of GPU time\n\n" +
+      "If you don’t make runs reproducible and observable, you won’t trust results.",
+
+    concepts: [
+      {
+        title: 'Data Parallelism vs Model Parallelism',
+        content:
+          "Data parallelism: replicate model, split batches, aggregate gradients. Model parallelism: split the model across devices. Most production teams start with data parallelism because it’s simpler operationally."
+      },
+      {
+        title: 'Synchronization and Communication',
+        content:
+          "Gradient all-reduce is the core operation. Bottlenecks are often network bandwidth/latency and poor batch sizing. Debugging requires logs and stable environment configuration."
+      },
+      {
+        title: 'Failure Modes (NCCL, Networking, Timeouts)',
+        content:
+          "Common issues include rendezvous misconfig, blocked ports, DNS problems, GPU memory OOM, and NCCL timeouts. Treat these as infra incidents with a runbook."
+      },
+      {
+        title: 'Reproducibility and Experiment Hygiene',
+        content:
+          "Use fixed seeds, versioned datasets, pinned dependencies, and logged configs. Distributed runs amplify noise; you need good metadata to compare runs."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define a Minimal Distributed Run Contract',
+        content:
+          "Define what must be logged for every training run:\n\n" +
+          "- code version\n"
+          + "- dataset/version\n"
+          + "- hyperparameters\n"
+          + "- world size, node count\n"
+          + "- model artifact location\n\n"
+          + "Deliverable: a short run contract (one page)."
+      },
+      {
+        title: 'Lab 2: Run Local DDP and Capture Metrics',
+        content:
+          "Run a small DDP job locally with `torchrun` and record throughput + loss.\n\n" +
+          "Deliverable: a log snippet showing rank init and final loss."
+      },
+      {
+        title: 'Lab 3: Write a Failure Runbook',
+        content:
+          "Write a runbook for:\n\n" +
+          "- NCCL timeout\n"
+          + "- OOM\n"
+          + "- node/pod eviction\n"
+          + "- rendezvous failure\n\n"
+          + "Deliverable: a checklist of 8–12 steps."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Distributed Training)',
+        content:
+          "Before production distributed training:\n\n" +
+          "- Run contract is defined\n" +
+          "- All configs are logged and versioned\n" +
+          "- Health checks and timeouts are configured\n" +
+          "- Failure runbook exists\n" +
+          "- Artifacts are stored deterministically"
+      }
+    ],
+
+    commonMistakes: [
+      "No reproducibility metadata (can’t compare runs)",
+      "Treating NCCL/network issues as ‘model bugs’",
+      "Scaling world size without tuning batch size/learning rate",
+      "No timeouts/health checks (runs hang forever)",
+      "Not storing intermediate checkpoints (wasted compute on failure)"
+    ],
+
+    bestPractices: [
+      "Start with data parallelism before model parallelism",
+      "Make runs reproducible via versioned inputs + configs",
+      "Use timeouts and health checks to fail fast",
+      "Checkpoint periodically to limit wasted compute",
+      "Treat infra failures with runbooks and ownership"
+    ],
+
+    realWorldExample:
+      "**Scenario: Training job hangs at initialization**\n\n" +
+      "A multi-node run hangs because rendezvous ports are blocked by a network policy. With a runbook and `NCCL_DEBUG=INFO`, the team identifies the blocked port and fixes the policy in minutes instead of burning GPU hours.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Distributed training adds operational complexity\n" +
+      "2. Data parallelism is the common starting point\n" +
+      "3. Fail fast with timeouts and health checks\n" +
+      "4. Reproducibility is non-negotiable",
+
+    nextSteps:
+      "Next, automate hyperparameter tuning so you can systematically search for better models while controlling compute cost and avoiding overfitting."
+  },
+
+  'automl-hyperparameter-tuning': {
+    introduction:
+      "Hyperparameter tuning is the practical bridge between ‘a model that works’ and ‘the best model you can deploy safely’. AutoML and tuning frameworks help you explore search spaces efficiently, but they can also waste huge amounts of compute if you don’t set guardrails.\n\n" +
+      "This lesson shows how to define a safe objective, structure the search space, use pruning/early stopping, and decide when tuning is finished.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Tuning can improve performance more than new architectures\n" +
+      "- Compute cost grows quickly with naive searches\n" +
+      "- Poor tuning hygiene leads to leakage and false wins\n\n" +
+      "Done well, tuning is measurable and repeatable; done poorly, it’s expensive guesswork.",
+
+    concepts: [
+      {
+        title: 'Search Strategies',
+        content:
+          "Grid search is simple but inefficient. Random search is a strong baseline. Bayesian optimization and bandit-style methods (with pruning) improve efficiency when trials are expensive."
+      },
+      {
+        title: 'Objective Function Design',
+        content:
+          "Your objective must be stable and representative. Fix splits, set seeds, avoid leakage, and prefer metrics aligned with production goals (e.g., ROC-AUC, PR-AUC, calibration)."
+      },
+      {
+        title: 'Pruning and Early Stopping',
+        content:
+          "Pruning cuts off weak trials early to save compute. It’s essential at scale. Without it, tuning cost often becomes unacceptable."
+      },
+      {
+        title: 'Overfitting to Validation',
+        content:
+          "Repeatedly tuning against the same validation set can overfit. Use nested CV or a final holdout test set. Promote only when holdout results confirm improvement."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define a Tuning Budget and Guardrails',
+        content:
+          "Define:\n\n" +
+          "- max trials\n" +
+          "- max time\n" +
+          "- max cost (if applicable)\n" +
+          "- minimum improvement threshold\n\n" +
+          "Deliverable: a tuning policy (budget + promotion rules)."
+      },
+      {
+        title: 'Lab 2: Implement a Reproducible Objective',
+        content:
+          "Implement an objective with fixed splits and seeds.\n\n" +
+          "Deliverable: an objective function that prints metric + params for each trial."
+      },
+      {
+        title: 'Lab 3: Add Pruning / Early Stopping',
+        content:
+          "Add pruning and demonstrate that weak trials stop early.\n\n" +
+          "Deliverable: logs showing pruned trials."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Hyperparameter Tuning)',
+        content:
+          "Before shipping tuned models:\n\n" +
+          "- Budget and guardrails are defined\n" +
+          "- Objective is reproducible (splits + seeds)\n" +
+          "- Pruning/early stopping is enabled\n" +
+          "- Final holdout validation exists\n" +
+          "- Best params + artifacts are tracked"
+      }
+    ],
+
+    commonMistakes: [
+      "Data leakage in preprocessing/splitting",
+      "No holdout set (overfitting to validation)",
+      "Search space too wide (wastes compute)",
+      "No pruning (cost explodes)",
+      "Promoting tiny improvements without statistical confidence"
+    ],
+
+    bestPractices: [
+      "Start with random search as a baseline",
+      "Constrain search spaces based on domain knowledge",
+      "Use pruning and strict budgets",
+      "Validate final candidates on a holdout set",
+      "Track artifacts, configs, and metrics end-to-end"
+    ],
+
+    realWorldExample:
+      "**Scenario: ‘Best params’ don’t reproduce**\n\n" +
+      "A team finds a ‘winner’ but can’t reproduce results because splits and seeds weren’t fixed. After implementing a reproducible objective and a holdout set, they discover the improvement was noise and avoid shipping a regression.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Tuning needs budgets and guardrails\n" +
+      "2. Objectives must be reproducible\n" +
+      "3. Pruning saves massive compute\n" +
+      "4. Confirm wins on a holdout set",
+
+    nextSteps:
+      "Next, use these infrastructure patterns to build an end-to-end real-time ML system with safe rollouts, monitoring, and retraining triggers."
+  },
+
+  'multi-cloud-hybrid-cloud': {
+    introduction:
+      "Multi-cloud and hybrid cloud architecture is less about ‘using every cloud’ and more about **choosing a portable baseline** while acknowledging unavoidable cloud-specific components.\n\n" +
+      "In this lesson, you’ll design a pragmatic multi-cloud operating model: portability where it matters, clear ownership, and measurable reliability (RTO/RPO) for disaster recovery.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Vendor risk and service outages are real\n" +
+      "- Compliance and data residency may require hybrid patterns\n" +
+      "- Multi-cloud adds operational overhead (tooling, skills, security)\n" +
+      "- DR across regions/clouds requires explicit planning and testing\n\n" +
+      "The goal is resilience and portability without turning your platform into a science project.",
+
+    concepts: [
+      {
+        title: 'Portable Baseline vs Cloud-Specific Features',
+        content:
+          "Portable: containers, Kubernetes primitives, GitOps workflows, app-level configuration patterns.\n\nCloud-specific: IAM implementations, networking constructs, managed databases, cloud-native load balancers. Good designs isolate cloud-specific concerns behind well-defined interfaces."
+      },
+      {
+        title: 'Identity and Access Across Clouds',
+        content:
+          "SSO + centralized identity is critical. Prefer short-lived credentials and workload identity patterns. Make authorization consistent with policy-as-code where possible."
+      },
+      {
+        title: 'Networking and Connectivity',
+        content:
+          "Hybrid connectivity can include VPN, dedicated interconnect, and private DNS strategies. Plan ingress/egress controls and avoid coupling app identity to IP assumptions."
+      },
+      {
+        title: 'Disaster Recovery (RTO/RPO)',
+        content:
+          "RTO: time to restore service. RPO: acceptable data loss. The best DR plan is explicit, tested regularly, and paired with automation (failover + validation)."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define RTO/RPO Targets',
+        content:
+          "Pick a service and define:\n\n" +
+          "- RTO target (e.g., 30 minutes)\n" +
+          "- RPO target (e.g., 5 minutes)\n" +
+          "- Dependencies (DB, cache, queues)\n\n" +
+          "Deliverable: an RTO/RPO table plus a dependency list."
+      },
+      {
+        title: 'Lab 2: Draw a Portable Deployment Baseline',
+        content:
+          "Design a baseline that works in Cloud A and Cloud B:\n\n" +
+          "- Kubernetes cluster baseline\n" +
+          "- GitOps deployment flow\n" +
+          "- Secrets approach\n" +
+          "- Observability approach\n\n" +
+          "Deliverable: a diagram and a short description of what is portable vs cloud-specific."
+      },
+      {
+        title: 'Lab 3: DR Runbook (Failover + Failback)',
+        content:
+          "Write a runbook:\n\n" +
+          "- Detect incident\n" +
+          "- Declare DR event\n" +
+          "- Failover steps\n" +
+          "- Validate traffic + data\n" +
+          "- Failback steps\n\n" +
+          "Deliverable: a one-page DR runbook."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Multi-Cloud/Hybrid)',
+        content:
+          "Before claiming multi-cloud readiness:\n\n" +
+          "- Portable baseline is defined\n" +
+          "- Cloud-specific dependencies are documented\n" +
+          "- RTO/RPO targets are agreed\n" +
+          "- DR runbook exists and is tested\n" +
+          "- Centralized observability is in place\n" +
+          "- Cost controls (budgets/tags) are enforced"
+      }
+    ],
+
+    commonMistakes: [
+      "‘Multi-cloud’ without a DR test (only a diagram)",
+      "Leaning on incompatible managed services across clouds",
+      "Duplicating tooling per cloud (no standard baseline)",
+      "No centralized identity/authorization model",
+      "Underestimating operational cost and on-call complexity"
+    ],
+
+    bestPractices: [
+      "Standardize a portable platform baseline (K8s + GitOps)",
+      "Isolate cloud-specific components behind interfaces",
+      "Define and test RTO/RPO regularly",
+      "Centralize identity and security policies",
+      "Track cost and enforce budgets early"
+    ],
+
+    realWorldExample:
+      "**Scenario: Regional outage**\n\n" +
+      "A primary region experiences a multi-hour outage. Because the team has tested DR automation and has clear RTO/RPO targets, traffic is shifted to a secondary region/cloud within minutes, and post-incident they execute a controlled failback.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Multi-cloud is an operating model, not a checkbox\n" +
+      "2. Portability requires a standard baseline\n" +
+      "3. DR success depends on tested RTO/RPO\n" +
+      "4. Keep cloud-specific components explicit and isolated",
+
+    nextSteps:
+      "Next, validate resilience with chaos engineering experiments so you can build confidence in failover behavior and operational runbooks."
+  },
+
+  'chaos-engineering': {
+    introduction:
+      "Chaos engineering is the discipline of increasing confidence in a system’s behavior by running controlled experiments that inject failures.\n\n" +
+      "This lesson focuses on safe, hypothesis-driven chaos in Kubernetes: define steady state, pick a small blast radius, run the experiment, and turn the results into hardening work.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Many outages are caused by ‘unknown unknowns’\n" +
+      "- DR plans and runbooks are only real after testing\n" +
+      "- Controlled experiments reduce surprise and improve recovery\n\n" +
+      "Chaos is not random breaking — it’s structured learning with safety controls.",
+
+    concepts: [
+      {
+        title: 'Steady State and Hypotheses',
+        content:
+          "You need steady-state metrics (SLOs/KPIs) and a hypothesis (e.g., ‘if one pod dies, error rate stays below X%’). Without that, you’re just generating noise."
+      },
+      {
+        title: 'Blast Radius and Stop Conditions',
+        content:
+          "Start small: one namespace, one service, one failure type. Define stop conditions (latency/error thresholds) and a rollback plan. Safety-first is mandatory."
+      },
+      {
+        title: 'Experiment Types in Kubernetes',
+        content:
+          "Common experiments: pod kill, node drain simulation, network delay/loss, CPU/memory stress, and dependency outage simulations. Pick experiments that map to real incident history."
+      },
+      {
+        title: 'From Findings to Engineering Work',
+        content:
+          "Each experiment should produce action items: improve alerts, fix timeouts/retries, add circuit breakers, update runbooks, or change deployment policies."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Write an Experiment Plan',
+        content:
+          "Write down:\n\n" +
+          "- steady state metrics\n" +
+          "- hypothesis\n" +
+          "- blast radius\n" +
+          "- stop conditions\n" +
+          "- rollback\n\n" +
+          "Deliverable: a one-page experiment plan."
+      },
+      {
+        title: 'Lab 2: Run a Pod Failure Experiment',
+        content:
+          "Run a pod-kill experiment against a stateless service and observe behavior.\n\n" +
+          "Deliverable: before/after metrics or logs and an outcome statement (pass/fail)."
+      },
+      {
+        title: 'Lab 3: Identify and Fix One Weakness',
+        content:
+          "Choose one issue uncovered (timeouts, retries, readiness probes, scaling) and propose a fix.\n\n" +
+          "Deliverable: a short ticket with acceptance criteria."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Chaos Engineering)',
+        content:
+          "Before running chaos regularly:\n\n" +
+          "- Steady state and hypotheses exist\n" +
+          "- Blast radius is constrained\n" +
+          "- Stop conditions are implemented\n" +
+          "- Rollback procedure exists\n" +
+          "- Results feed back into runbooks and hardening"
+      }
+    ],
+
+    commonMistakes: [
+      "Running experiments without steady state metrics",
+      "Too large a blast radius early on",
+      "No stop conditions (turning chaos into outages)",
+      "Not turning findings into engineering work",
+      "Treating chaos as a one-time activity instead of a practice"
+    ],
+
+    bestPractices: [
+      "Start small and iterate",
+      "Use hypotheses and measurable outcomes",
+      "Automate rollback and enforce stop conditions",
+      "Focus on incident-driven experiments",
+      "Capture learnings in runbooks and playbooks"
+    ],
+
+    realWorldExample:
+      "**Scenario: Latency spike on dependency slowdown**\n\n" +
+      "A network-delay experiment reveals that the service lacks timeouts and retries, causing thread exhaustion. Adding timeouts, circuit breakers, and proper readiness probes improves resilience and reduces incident duration.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Chaos is hypothesis-driven learning\n" +
+      "2. Safety controls are mandatory\n" +
+      "3. Experiments should map to real risk\n" +
+      "4. Findings must turn into hardening work",
+
+    nextSteps:
+      "Next, continue to advanced MLOps patterns like federated learning and continuous training to build adaptive systems at enterprise scale."
+  },
+
+  'federated-learning': {
+    introduction:
+      "Federated learning (FL) trains a shared model across many clients (devices/organizations) **without centralizing raw data**. Instead of sending data to a server, clients train locally and send model updates that are aggregated into a global model.\n\n" +
+      "This lesson builds an operational understanding of FL: the lifecycle, privacy controls, failure modes, and what makes it hard in production.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Privacy and data residency rules can prohibit centralizing data\n" +
+      "- Edge/partner data can be valuable but inaccessible\n" +
+      "- FL introduces new threats (poisoning, leakage, unreliable clients)\n\n" +
+      "FL is a platform problem as much as it is an ML problem.",
+
+    concepts: [
+      {
+        title: 'Federated Lifecycle (Rounds)',
+        content:
+          "A server selects clients, clients train locally, then send updates (gradients/weights). The server aggregates (e.g., FedAvg) and repeats. This loop must handle unreliable clients, varying compute, and non-identical data distributions."
+      },
+      {
+        title: 'Privacy Controls (High Level)',
+        content:
+          "Secure aggregation prevents the server from seeing individual client updates. Differential privacy adds noise to reduce leakage risk. These controls have trade-offs (accuracy, compute, and complexity)."
+      },
+      {
+        title: 'Threat Model and Robustness',
+        content:
+          "Attack surfaces include poisoning (malicious updates), sybil clients, and inference attacks on updates. Mitigations include robust aggregation, client validation, anomaly detection, and strict governance."
+      },
+      {
+        title: 'Non-IID Data and Evaluation',
+        content:
+          "Client data is rarely IID. You need evaluation protocols that consider client segments and fairness. Global metrics can hide failures in important cohorts."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define a Federated Use Case and Constraints',
+        content:
+          "Pick a use case and write constraints:\n\n" +
+          "- Who are the clients (phones, hospitals, stores)?\n" +
+          "- What data cannot move?\n" +
+          "- What are privacy/compliance requirements?\n\n" +
+          "Deliverable: a one-page FL problem statement."
+      },
+      {
+        title: 'Lab 2: Sketch an FL System Architecture',
+        content:
+          "Draw:\n\n" +
+          "- Coordinator/service that selects clients\n" +
+          "- Client update pipeline\n" +
+          "- Aggregation service\n" +
+          "- Model registry + rollout\n\n" +
+          "Deliverable: a diagram plus key APIs/events."
+      },
+      {
+        title: 'Lab 3: Threat Model Checklist',
+        content:
+          "Answer:\n\n" +
+          "- Can clients be malicious?\n" +
+          "- Can updates leak sensitive info?\n" +
+          "- What is the worst-case impact of poisoning?\n" +
+          "- What mitigations are required?\n\n" +
+          "Deliverable: a short threat model with mitigations."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Federated Learning)',
+        content:
+          "Before production FL:\n\n" +
+          "- Use case and constraints are documented\n" +
+          "- Privacy controls are chosen and reviewed\n" +
+          "- Threat model exists\n" +
+          "- Client selection + evaluation strategy exists\n" +
+          "- Rollout/rollback plan exists"
+      }
+    ],
+
+    commonMistakes: [
+      "Assuming FL automatically guarantees privacy",
+      "Ignoring poisoning and sybil risks",
+      "Evaluating only global metrics (missing cohort failures)",
+      "No governance for client onboarding and access",
+      "Underestimating operational complexity (device churn, bandwidth)"
+    ],
+
+    bestPractices: [
+      "Start with a clear threat model",
+      "Use robust evaluation across clients/cohorts",
+      "Treat privacy controls as design requirements, not add-ons",
+      "Design for unreliable clients and partial participation",
+      "Keep rollouts and versioning as strict as centralized ML"
+    ],
+
+    realWorldExample:
+      "**Scenario: Cross-organization training**\n\n" +
+      "Multiple organizations want a shared model but cannot share data. FL allows local training with secure aggregation, while governance defines onboarding, validation, and incident response if anomalous updates are detected.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. FL avoids centralizing raw data\n" +
+      "2. Privacy and robustness require explicit controls\n" +
+      "3. Non-IID data changes evaluation strategy\n" +
+      "4. FL is operationally complex",
+
+    nextSteps:
+      "Next, learn edge ML patterns so you can deploy and operate models on constrained devices with safe updates and telemetry."
+  },
+
+  'ml-at-edge': {
+    introduction:
+      "Edge ML runs inference (and sometimes training) on devices like phones, gateways, cameras, vehicles, and IoT nodes. The promise is low latency and privacy; the reality is tight constraints and difficult observability.\n\n" +
+      "This lesson covers practical edge operations: model compression, deployment strategy, telemetry, and rollback.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Edge reduces latency and bandwidth costs\n" +
+      "- Data may be too sensitive to centralize\n" +
+      "- Offline operation can be a hard requirement\n\n" +
+      "Shipping models to devices turns ML into a distributed systems problem.",
+
+    concepts: [
+      {
+        title: 'Compression Techniques (Overview)',
+        content:
+          "Quantization reduces precision (e.g., FP32 → INT8). Pruning removes unnecessary weights. Distillation trains a smaller student model to mimic a larger teacher. These trade accuracy for speed/size."
+      },
+      {
+        title: 'On-Device Constraints',
+        content:
+          "Constraints include memory, CPU/GPU/NPUs, battery/thermal limits, and intermittent connectivity. A good deployment plan accounts for worst-case device profiles."
+      },
+      {
+        title: 'Deployment and Updates',
+        content:
+          "Use signed artifacts, staged rollouts, and quick rollback. Treat model updates like app updates: compatibility checks, gradual rollout, and guardrails for crash rate and latency."
+      },
+      {
+        title: 'Telemetry and Privacy',
+        content:
+          "Collect minimal necessary telemetry (latency, crash rate, model version, summary stats) and avoid leaking sensitive signals. Edge observability should prioritize reliability first."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define Edge Success Metrics',
+        content:
+          "Define:\n\n" +
+          "- max model size\n" +
+          "- max latency\n" +
+          "- crash budget\n" +
+          "- acceptable accuracy impact\n\n" +
+          "Deliverable: an edge SLO table."
+      },
+      {
+        title: 'Lab 2: Design a Staged Rollout and Rollback',
+        content:
+          "Write a rollout plan with cohorts and rollback triggers.\n\n" +
+          "Deliverable: a one-page rollout policy."
+      },
+      {
+        title: 'Lab 3: Define Telemetry Schema',
+        content:
+          "Define a minimal telemetry schema:\n\n" +
+          "- device model/OS\n" +
+          "- model_version\n" +
+          "- latency bucket\n" +
+          "- crash signal\n" +
+          "- optional drift proxy summary\n\n" +
+          "Deliverable: a JSON schema."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Edge ML)',
+        content:
+          "Before shipping edge models:\n\n" +
+          "- Size/latency constraints are met\n" +
+          "- Artifacts are signed and versioned\n" +
+          "- Staged rollout exists\n" +
+          "- Rollback triggers are defined\n" +
+          "- Telemetry is privacy-reviewed"
+      }
+    ],
+
+    commonMistakes: [
+      "No rollback path for a bad model update",
+      "Collecting too much telemetry (privacy risk + bandwidth)",
+      "Ignoring device diversity (only testing high-end devices)",
+      "Shipping large models without compression",
+      "Assuming connectivity is always available"
+    ],
+
+    bestPractices: [
+      "Use staged rollouts with strict rollback triggers",
+      "Test across representative device profiles",
+      "Treat model artifacts as supply-chain assets (signing/versioning)",
+      "Keep telemetry minimal and privacy-safe",
+      "Design for offline and intermittent connectivity"
+    ],
+
+    realWorldExample:
+      "**Scenario: Model update increases crash rate**\n\n" +
+      "A new model uses too much memory on older devices. A staged rollout detects a crash-rate spike in one device cohort and triggers automatic rollback while the team ships a smaller quantized model.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Edge ML optimizes latency and privacy\n" +
+      "2. Constraints and device diversity dominate design\n" +
+      "3. Updates require rollout and rollback discipline\n" +
+      "4. Observability must be minimal and safe",
+
+    nextSteps:
+      "Next, implement continuous training so you can keep models fresh and safe over time with automated evaluation gates and controlled rollouts."
+  },
+
+  'continuous-training': {
+    introduction:
+      "Continuous training keeps models up to date as data and the environment change. Done well, it’s a controlled pipeline with triggers, evaluation gates, approvals, and safe rollouts — not a loop that retrains and deploys blindly.\n\n" +
+      "This lesson focuses on operational safety: when to retrain, how to validate, and how to avoid shipping regressions automatically.",
+
+    whyItMatters:
+      "**Why this matters:**\n\n" +
+      "- Data drift and changing behavior are inevitable\n" +
+      "- Manual retraining doesn’t scale\n" +
+      "- Automated retraining without gates can cause silent regressions\n\n" +
+      "The goal is repeatable improvement with controlled risk.",
+
+    concepts: [
+      {
+        title: 'Retraining Modes',
+        content:
+          "Online learning updates continuously; periodic retraining rebuilds on a schedule; incremental training updates using partial fits or warm starts. Choose based on label latency, risk tolerance, and model type."
+      },
+      {
+        title: 'Triggers and Guardrails',
+        content:
+          "Common triggers: drift thresholds, KPI degradation, new labeled data volume, or schedule. Guardrails include evaluation thresholds, fairness checks, and cost budgets."
+      },
+      {
+        title: 'Evaluation Gates and Promotion',
+        content:
+          "Treat retraining like CI/CD: build → evaluate → approve → canary → promote. Never skip holdout validation and rollback planning."
+      },
+      {
+        title: 'Versioning and Reproducibility',
+        content:
+          "Every candidate must be reproducible: dataset version, feature version, code version, hyperparameters, and environment. Without this, you can’t debug regressions."
+      }
+    ],
+
+    stepByStep: [
+      {
+        title: 'Lab 1: Define Triggers and Budgets',
+        content:
+          "Define:\n\n" +
+          "- retraining triggers\n" +
+          "- max compute/time budget\n" +
+          "- min improvement required\n\n" +
+          "Deliverable: a retraining policy."
+      },
+      {
+        title: 'Lab 2: Define Evaluation Gates',
+        content:
+          "Define gates:\n\n" +
+          "- accuracy/performance threshold\n" +
+          "- calibration (if relevant)\n" +
+          "- fairness/segment checks\n" +
+          "- latency constraints\n\n" +
+          "Deliverable: an evaluation checklist."
+      },
+      {
+        title: 'Lab 3: Rollout Plan for New Models',
+        content:
+          "Create a canary/A-B plan with stop conditions and rollback steps.\n\n" +
+          "Deliverable: a one-page rollout plan."
+      },
+      {
+        title: 'Lab 4: DoD Checklist (Continuous Training)',
+        content:
+          "Before enabling continuous training:\n\n" +
+          "- Triggers and budgets are defined\n" +
+          "- Evaluation gates are implemented\n" +
+          "- Artifacts are versioned and reproducible\n" +
+          "- Canary rollout and rollback exist\n" +
+          "- Monitoring covers service + ML signals"
+      }
+    ],
+
+    commonMistakes: [
+      "Auto-deploying retrained models without gates",
+      "No reproducibility metadata (can’t debug regressions)",
+      "Triggers that fire too often (cost explosion)",
+      "Evaluating only global metrics (missing cohort regressions)",
+      "No rollback plan (incidents become outages)"
+    ],
+
+    bestPractices: [
+      "Treat retraining like CI/CD with promotion gates",
+      "Version data, features, code, and environment",
+      "Use strict budgets and tune triggers over time",
+      "Canary and stop conditions for every deployment",
+      "Monitor model + business KPIs continuously"
+    ],
+
+    realWorldExample:
+      "**Scenario: Drift-triggered retrain prevents regression**\n\n" +
+      "A drift alert triggers a retrain candidate, but evaluation gates detect a cohort regression and block promotion. The pipeline surfaces the issue early, and the team adjusts feature engineering before safely shipping an improved model.",
+
+    summary:
+      "## 📝 Key Takeaways\n\n" +
+      "1. Continuous training needs triggers and budgets\n" +
+      "2. Promotion gates prevent silent regressions\n" +
+      "3. Versioning is required for debugging\n" +
+      "4. Safe rollouts close the loop",
+
+    nextSteps:
+      "That completes the Phase 6 module set. Next, you can refine capstone project guidance and add end-to-end verification via API routes to ensure lesson rendering matches expectations."
   }
 };
 

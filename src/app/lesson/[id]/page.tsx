@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useParams } from "next/navigation"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { 
   ArrowLeft,
   ArrowRight,
@@ -10,10 +12,10 @@ import {
   CheckCircle2,
   Terminal as TerminalIcon,
   Play,
-  Lightbulb,
   FileText,
   Code2,
-  ChevronRight
+  ChevronRight,
+  Rocket
 } from "lucide-react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { RealTerminal } from "@/components/terminal/real-terminal"
+import { getProjectGuide } from "@/data/project-guides"
 import Link from "next/link"
 
 interface LessonNav {
@@ -62,6 +65,12 @@ interface Lesson {
   currentLessonIndex: number
 }
 
+type CodeExample = {
+  language: string
+  title: string
+  code: string
+}
+
 // Type icons
 const typeIcons: Record<string, React.ElementType> = {
   video: Play,
@@ -88,6 +97,29 @@ export default function LessonPage() {
   const [error, setError] = useState<string | null>(null)
   const [showTerminal, setShowTerminal] = useState(false)
   const [completed, setCompleted] = useState(false)
+
+  const parsedCodeExamples = useMemo<CodeExample[] | null>(() => {
+    if (!lesson?.codeExamples) return null
+    try {
+      const parsed: unknown = JSON.parse(lesson.codeExamples)
+      if (!Array.isArray(parsed)) return null
+
+      const results: CodeExample[] = []
+      for (const item of parsed) {
+        if (!item || typeof item !== "object") continue
+        const record = item as Record<string, unknown>
+        const language = record.language
+        const title = record.title
+        const code = record.code
+        if (typeof language === "string" && typeof title === "string" && typeof code === "string") {
+          results.push({ language, title, code })
+        }
+      }
+      return results
+    } catch {
+      return null
+    }
+  }, [lesson?.codeExamples])
 
   useEffect(() => {
     async function fetchLesson() {
@@ -149,19 +181,6 @@ export default function LessonPage() {
   const markComplete = () => {
     setCompleted(true)
     // TODO: Save progress to database
-  }
-
-  // Parse content for code blocks
-  const renderContent = (content: string) => {
-    return content
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-slate-800 rounded-lg p-4 overflow-x-auto my-4"><code>$2</code></pre>')
-      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400">$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
-      .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-white mt-6 mb-3">$1</h2>')
-      .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-white mt-4 mb-2">$1</h3>')
-      .replace(/^- (.+)$/gm, '<li class="ml-4 text-slate-300">• $1</li>')
-      .replace(/\n\n/g, '</p><p class="mt-4">')
-      .replace(/\n/g, '<br>')
   }
 
   return (
@@ -252,12 +271,80 @@ export default function LessonPage() {
                 </CardContent>
               </Card>
 
+              {/* Project Guide Card - for project lessons */}
+              {lesson.type === 'project' && (() => {
+                // Try to find a matching project guide
+                const projectId = lesson.title.toLowerCase().includes('project 1') ? 'project-1' :
+                                  lesson.title.toLowerCase().includes('project 2') ? 'project-2' :
+                                  lesson.title.toLowerCase().includes('project 3') ? 'project-3' : null
+                const guide = projectId ? getProjectGuide(projectId) : null
+                
+                if (guide) {
+                  return (
+                    <Card className="mb-6 border-purple-500/30 bg-purple-500/5">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400">
+                              <Rocket className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-white">Step-by-Step Project Guide</h3>
+                              <p className="text-sm text-slate-400">
+                                {guide.phases.length} phases • {guide.phases.reduce((sum, p) => sum + p.tasks.length, 0)} tasks • {guide.totalTime}
+                              </p>
+                            </div>
+                          </div>
+                          <Link href={`/projects/${projectId}`}>
+                            <Button className="gap-2 bg-purple-600 hover:bg-purple-700">
+                              <BookOpen className="h-4 w-4" />
+                              Open Project Guide
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                }
+                return null
+              })()}
+
               {/* Main Content */}
               <article className="prose prose-invert prose-emerald max-w-none">
-                <div 
-                  className="text-slate-300 leading-relaxed"
-                  dangerouslySetInnerHTML={{ 
-                    __html: renderContent(lesson.content || `
+                <div className="text-slate-300 leading-relaxed">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      pre: ({ children, ...props }) => (
+                        <pre
+                          className="bg-slate-800 rounded-lg p-4 overflow-x-auto my-4"
+                          {...props}
+                        >
+                          {children}
+                        </pre>
+                      ),
+                      code: ({ className, children, ...props }) => {
+                        const isBlock = Boolean(className && className.includes("language-"))
+                        if (isBlock) {
+                          return (
+                            <code className={className ?? ""} {...props}>
+                              {children}
+                            </code>
+                          )
+                        }
+
+                        return (
+                          <code
+                            className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400"
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        )
+                      },
+                    }}
+                  >
+                    {lesson.content || `
 ## ${lesson.title}
 
 This lesson is part of the **${lesson.module.title}** module in the ${lesson.module.track.title} track.
@@ -281,22 +368,36 @@ Click the "Open Terminal" button above to start practicing with real commands an
 ### Next Steps
 
 After completing this lesson, you'll be ready to move on to more advanced topics in the curriculum.
-                    `)
-                  }}
-                />
+                    `}
+                  </ReactMarkdown>
+                </div>
               </article>
 
               {/* Code Examples */}
-              {lesson.codeExamples && (
+              {parsedCodeExamples && parsedCodeExamples.length > 0 && (
                 <Card className="mt-6 border-slate-700">
                   <CardContent className="p-4">
                     <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
                       <Code2 className="h-4 w-4 text-purple-400" />
                       Code Examples
                     </h4>
-                    <pre className="bg-slate-800 rounded-lg p-4 overflow-x-auto text-sm">
-                      <code className="text-slate-300">{lesson.codeExamples}</code>
-                    </pre>
+                    <div className="space-y-4">
+                      {parsedCodeExamples.map((example, index) => (
+                        <div key={`${example.title}-${index}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-sm font-semibold text-white">
+                              {example.title}
+                            </h5>
+                            <Badge variant="outline" className="text-xs">
+                              {example.language}
+                            </Badge>
+                          </div>
+                          <pre className="bg-slate-800 rounded-lg p-4 overflow-x-auto text-sm">
+                            <code className="text-slate-300 whitespace-pre">{example.code}</code>
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
