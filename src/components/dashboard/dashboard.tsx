@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { 
   PlayCircle, 
   Clock, 
@@ -11,7 +12,8 @@ import {
   ChevronRight,
   Flame,
   CheckCircle2,
-  Circle
+  Circle,
+  Loader2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,138 +21,194 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
-// Sample data - will be replaced with real data from database
-const currentTrack = {
-  title: "DevOps Fundamentals",
-  progress: 35,
-  currentLesson: {
-    id: "docker-basics",
-    title: "Docker Fundamentals",
-    module: "Containerization",
-    duration: 45,
-    type: "lab"
+interface DashboardData {
+  user: {
+    id: string
+    name: string
+    streak: number
+    totalXp: number
+    level: number
   }
-}
-
-const recentLessons = [
-  { id: 1, title: "Introduction to Linux", completed: true, duration: 30 },
-  { id: 2, title: "Shell Scripting Basics", completed: true, duration: 45 },
-  { id: 3, title: "Git & Version Control", completed: true, duration: 40 },
-  { id: 4, title: "Docker Fundamentals", completed: false, duration: 45 },
-]
-
-const learningTracks = [
-  {
-    id: "phase-1-foundation",
-    title: "Phase 1: Foundation",
-    description: "Linux, Git, Docker, CI/CD fundamentals and cloud basics",
-    icon: "🌱",
-    modules: 5,
-    progress: 35,
-    color: "from-emerald-500 to-cyan-500"
-  },
-  {
-    id: "phase-2-core-devops",
-    title: "Phase 2: Core DevOps",
-    description: "Kubernetes, Terraform, GitOps, and microservices",
-    icon: "🔧",
-    modules: 4,
-    progress: 0,
-    color: "from-blue-500 to-indigo-500"
-  },
-  {
-    id: "phase-4-mlops-introduction",
-    title: "Phase 4: MLOps Introduction",
-    description: "ML fundamentals, experiment tracking, and model serving",
-    icon: "🧠",
-    modules: 3,
-    progress: 0,
-    color: "from-purple-500 to-pink-500"
+  stats: {
+    streak: number
+    totalXp: number
+    completedLessons: number
+    labHours: number
+    weeklyLessons: number
+    weeklyHours: number
   }
-]
-
-const weeklyGoal = {
-  target: 5,
-  completed: 3,
-  hoursSpent: 4.5,
-  hoursGoal: 10
+  weeklyGoal: {
+    target: number
+    completed: number
+    hoursSpent: number
+    hoursGoal: number
+  }
+  currentTrack: {
+    title: string
+    progress: number
+    currentLesson: {
+      id: string
+      title: string
+      module: string
+      duration: number
+      type: string
+    } | null
+  }
+  learningTracks: {
+    id: string
+    title: string
+    description: string
+    icon: string
+    modules: number
+    progress: number
+    color: string
+  }[]
+  recentLessons: {
+    id: string
+    title: string
+    completed: boolean
+    duration: number
+  }[]
 }
 
 export function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchDashboard()
+  }, [])
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/dashboard")
+      if (!res.ok) throw new Error("Failed to fetch dashboard")
+      const dashboardData = await res.json()
+      setData(dashboardData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-6">
+        <Card className="border-red-500/30">
+          <CardContent className="p-6 text-center">
+            <p className="text-red-400">{error || "Failed to load dashboard"}</p>
+            <Button variant="outline" className="mt-4" onClick={fetchDashboard}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const { stats, weeklyGoal, currentTrack, learningTracks, recentLessons } = data
+
   return (
     <div className="p-6 space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Current Streak"
-          value="5 days"
+          value={`${stats.streak} day${stats.streak !== 1 ? 's' : ''}`}
           icon={Flame}
           iconColor="text-orange-500"
           bgColor="bg-orange-500/10"
-          trend="+2 from last week"
+          trend={stats.weeklyLessons > 0 ? `${stats.weeklyLessons} lessons this week` : "Start learning!"}
         />
         <StatCard
           title="Total XP"
-          value="1,250"
+          value={stats.totalXp.toLocaleString()}
           icon={Award}
           iconColor="text-purple-500"
           bgColor="bg-purple-500/10"
-          trend="Level 4"
+          trend={`Level ${data.user.level}`}
         />
         <StatCard
           title="Lessons Completed"
-          value="12"
+          value={stats.completedLessons.toString()}
           icon={BookOpen}
           iconColor="text-emerald-500"
           bgColor="bg-emerald-500/10"
-          trend="3 this week"
+          trend={`${stats.weeklyLessons} this week`}
         />
         <StatCard
           title="Lab Hours"
-          value="18h"
+          value={`${stats.labHours}h`}
           icon={Terminal}
           iconColor="text-cyan-500"
           bgColor="bg-cyan-500/10"
-          trend="4.5h this week"
+          trend={`${stats.weeklyHours}h this week`}
         />
       </div>
 
       {/* Continue Learning */}
-      <Card className="border-emerald-500/30 glow-emerald">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500">
-                <Terminal className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-400">Continue Learning</p>
-                <h3 className="text-xl font-bold text-white">{currentTrack.currentLesson.title}</h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <Badge variant="default">{currentTrack.currentLesson.type}</Badge>
-                  <span className="text-sm text-slate-400 flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {currentTrack.currentLesson.duration} min
-                  </span>
+      {currentTrack.currentLesson ? (
+        <Card className="border-emerald-500/30 glow-emerald">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500">
+                  <Terminal className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400">Continue Learning</p>
+                  <h3 className="text-xl font-bold text-white">{currentTrack.currentLesson.title}</h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <Badge variant="default">{currentTrack.currentLesson.type}</Badge>
+                    <span className="text-sm text-slate-400 flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {currentTrack.currentLesson.duration} min
+                    </span>
+                  </div>
                 </div>
               </div>
+              <Link href={`/lesson/${currentTrack.currentLesson.id}`}>
+                <Button size="lg" className="gap-2">
+                  <PlayCircle className="h-5 w-5" />
+                  Continue
+                </Button>
+              </Link>
             </div>
-            <Link href={`/lesson/${currentTrack.currentLesson.id}`}>
-              <Button size="lg" className="gap-2">
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-slate-400">{currentTrack.title}</span>
+                <span className="text-emerald-400">{currentTrack.progress}% complete</span>
+              </div>
+              <Progress value={currentTrack.progress} />
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-emerald-500/30">
+          <CardContent className="p-6 text-center">
+            <Terminal className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-white mb-2">Start Your DevOps Journey</h3>
+            <p className="text-slate-400 mb-4">Begin learning with our comprehensive curriculum</p>
+            <Link href="/tracks">
+              <Button className="gap-2">
                 <PlayCircle className="h-5 w-5" />
-                Continue
+                Browse Tracks
               </Button>
             </Link>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-slate-400">{currentTrack.title}</span>
-              <span className="text-emerald-400">{currentTrack.progress}% complete</span>
-            </div>
-            <Progress value={currentTrack.progress} />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

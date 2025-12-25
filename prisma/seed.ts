@@ -42,6 +42,7 @@ async function main() {
   console.log('🗑️  Clearing existing data...');
   await prisma.userAchievement.deleteMany();
   await prisma.userSkill.deleteMany();
+  await prisma.userSettings.deleteMany();
   await prisma.labSession.deleteMany();
   await prisma.labExerciseProgress.deleteMany();
   await prisma.dailyActivity.deleteMany();
@@ -281,6 +282,21 @@ async function main() {
     }
   });
   console.log(`   Created user: ${user.name} (${user.email})`);
+
+  // Create default user settings
+  await prisma.userSettings.create({
+    data: {
+      userId: user.id,
+      dailyGoal: 30,
+      weeklyLessonGoal: 5,
+      streakReminder: true,
+      weeklyReport: true,
+      newContent: false,
+      theme: 'dark',
+      terminalFont: 'JetBrains Mono'
+    }
+  });
+  console.log('   Created user settings');
 
   const trackCount = await prisma.track.count();
   const moduleCount = await prisma.module.count();
