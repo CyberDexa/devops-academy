@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (skip postinstall since terminal server doesn't need Prisma)
-RUN npm ci --omit=dev --ignore-scripts
+# Install only the dependencies needed for terminal server
+RUN npm install socket.io node-pty --save
 
 # Copy terminal server
 COPY terminal-server.js ./
