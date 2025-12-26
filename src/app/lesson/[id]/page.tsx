@@ -191,7 +191,7 @@ export default function LessonPage() {
       
       <main className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Lesson Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-sm">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
               <Link href={`/tracks/${lesson.module.track.slug}/${lesson.module.slug}`}>
@@ -244,10 +244,10 @@ export default function LessonPage() {
         {/* Main Content */}
         <div className="flex-1 flex">
           {/* Lesson Content */}
-          <div className={`flex-1 overflow-y-auto ${showTerminal ? "w-1/2" : "w-full"}`}>
-            <div className="max-w-3xl mx-auto p-6">
+          <div className={`flex-1 overflow-y-auto ${showTerminal ? "mr-[50%]" : "w-full"}`}>
+            <div className="max-w-3xl mx-auto p-6 lg:p-8">
               {/* Lesson Info Card */}
-              <Card className="mb-6 border-emerald-500/30">
+              <Card className="mb-8 border-0 bg-slate-800/50 shadow-lg">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -283,7 +283,7 @@ export default function LessonPage() {
                 
                 if (guide) {
                   return (
-                    <Card className="mb-6 border-purple-500/30 bg-purple-500/5">
+                    <Card className="mb-8 border-0 bg-purple-500/10 shadow-lg">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -377,7 +377,7 @@ After completing this lesson, you'll be ready to move on to more advanced topics
 
               {/* Code Examples */}
               {parsedCodeExamples && parsedCodeExamples.length > 0 && (
-                <Card className="mt-6 border-slate-700">
+                <Card className="mt-8 border-0 bg-slate-800/50 shadow-lg">
                   <CardContent className="p-4">
                     <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
                       <Code2 className="h-4 w-4 text-purple-400" />
@@ -405,7 +405,7 @@ After completing this lesson, you'll be ready to move on to more advanced topics
               )}
 
               {/* Completion Card */}
-              <Card className={`mt-6 ${completed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700'}`}>
+              <Card className={`mt-8 border-0 shadow-lg ${completed ? 'bg-emerald-500/10' : 'bg-slate-800/50'}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -432,7 +432,7 @@ After completing this lesson, you'll be ready to move on to more advanced topics
               </Card>
 
               {/* Navigation */}
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800">
+              <div className="flex items-center justify-between mt-10 pt-8">
                 <div>
                   {lesson.prevLesson ? (
                     <Link href={`/lesson/${lesson.prevLesson.slug}`}>
@@ -471,9 +471,9 @@ After completing this lesson, you'll be ready to move on to more advanced topics
             </div>
           </div>
 
-          {/* Terminal Panel */}
+          {/* Terminal Panel - Floating */}
           {showTerminal && (
-            <div className="w-1/2 border-l border-slate-800">
+            <div className="fixed right-0 top-0 w-1/2 h-screen bg-slate-900 z-20">
               <RealTerminal 
                 title="Lab Environment"
                 lessonId={lessonId}

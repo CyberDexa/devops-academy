@@ -119,3 +119,68 @@ body {
 .streak-fire {
   animation: flicker 0.5s infinite;
 }
+
+/* Remove horizontal rules/dividers from prose content */
+.prose hr {
+  display: none;
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+}
+
+/* Remove any border-bottom from headings */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  border-bottom: none !important;
+}
+
+/* More spacing between sections instead of dividers */
+.prose > * + * {
+  margin-top: 1.75em;
+}
+
+/* Extra spacing before headings for visual separation */
+.prose h2 {
+  margin-top: 3rem;
+  margin-bottom: 1.25em;
+  padding-top: 1rem;
+}
+
+.prose h3 {
+  margin-top: 2.5rem;
+  margin-bottom: 1em;
+  padding-top: 0.75rem;
+}
+
+.prose h4 {
+  margin-top: 2rem;
+  margin-bottom: 0.75em;
+}
+
+/* Spacing for paragraphs and lists */
+.prose p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+
+.prose ul,
+.prose ol {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+
+/* Spacing for code blocks */
+.prose pre {
+  margin-top: 1.75em;
+  margin-bottom: 1.75em;
+}
+
+/* Add spacing before emoji section headers (🚀, 🎯, etc.) */
+.prose p:has(strong:first-child),
+.prose p strong:first-child {
+  display: block;
+  margin-top: 2.5rem;
+}

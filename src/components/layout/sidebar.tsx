@@ -54,8 +54,8 @@ export function Sidebar({ streak = 0, xp = 0 }: SidebarProps) {
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-slate-900/95 backdrop-blur-sm transition-all duration-300",
           sidebarCollapsed 
-            ? "w-16 border-r border-slate-800/50" 
-            : "w-64 border-r border-slate-800",
+            ? "w-16" 
+            : "w-64",
           // Mobile: hidden when collapsed
           "max-lg:translate-x-0",
           sidebarCollapsed && "max-lg:-translate-x-full"
