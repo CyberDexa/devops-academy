@@ -1,12 +1,13 @@
 // DevOps Academy Database Schema
-// SQLite database for tracking learning progress
+// PostgreSQL database for tracking learning progress (Neon)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // User model for multi-user support
