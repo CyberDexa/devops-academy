@@ -1,16 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import path from 'path';
+import { PrismaPg } from '@prisma/adapter-pg';
 import curriculum, { curriculumStats } from '../src/data/curriculum';
 import { generateDetailedContent } from '../src/data/lesson-content';
 
-// Prisma 7 requires adapter for SQLite
-// Use the same path as .env (project root)
-const projectRoot = path.resolve(__dirname, '..');
-const dbPath = path.join(projectRoot, 'dev.db');
-const adapter = new PrismaBetterSqlite3({ 
-  url: `file:${dbPath}`
+// For Prisma 7 with PostgreSQL, use PrismaPg adapter
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
 
