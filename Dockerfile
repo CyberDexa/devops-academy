@@ -20,10 +20,10 @@ COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 # Copy terminal server
-COPY terminal-server-isolated.js ./
+COPY terminal-server.js ./
 
 # Expose port
 EXPOSE 10000
 
 # Start server
-CMD ["node", "terminal-server-isolated.js"]
+CMD ["node", "terminal-server.js"]
