@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (skip postinstall since terminal server doesn't need Prisma)
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy terminal server
 COPY terminal-server-isolated.js ./
