@@ -1,12 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Maximize2, Minimize2, Copy, RotateCcw, X, Settings } from "lucide-react"
+import { Maximize2, Minimize2, Copy, RotateCcw, X, Settings, Terminal, Download, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { io, Socket } from "socket.io-client"
 import { getTerminalConfig, TerminalMode } from "@/lib/terminal-config"
 import { TerminalSettings } from "./terminal-settings"
+
+// Check if we're running on Vercel/production without terminal server
+const isServerlessProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || 
+   process.env.NEXT_PUBLIC_VERCEL === '1' ||
+   process.env.NODE_ENV === 'production')
 
 interface TerminalProps {
   className?: string
@@ -35,6 +41,7 @@ export function RealTerminal({
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting')
   const [currentMode, setCurrentMode] = useState<TerminalMode>('local')
   const [configKey, setConfigKey] = useState(0) // Used to force reconnect on config change
+  const [showProductionMessage, setShowProductionMessage] = useState(false)
 
   // Handle config changes - force reconnect
   const handleConfigChange = useCallback(() => {
@@ -127,7 +134,10 @@ export function RealTerminal({
         }, 100)
 
         // Connect to WebSocket server
-        const socket = io({
+        // Use NEXT_PUBLIC_TERMINAL_SERVER_URL for Render deployment, fallback to local
+        const terminalServerUrl = process.env.NEXT_PUBLIC_TERMINAL_SERVER_URL || ''
+        
+        const socket = io(terminalServerUrl, {
           path: '/api/terminal/socket',
           transports: ['websocket', 'polling'],
         })
@@ -299,6 +309,96 @@ export function RealTerminal({
     connected: 'Connected',
     error: 'Connection Error',
     disconnected: 'Disconnected'
+  }
+
+  // Production fallback - show local setup instructions
+  if (showProductionMessage || (connectionStatus === 'error' && isServerlessProduction)) {
+    return (
+      <div
+        className={cn(
+          "terminal-container flex flex-col",
+          isFullscreen && "fixed inset-4 z-50",
+          className
+        )}
+      >
+        {/* Terminal Header */}
+        <div className="terminal-header">
+          <div className="flex gap-2">
+            <span className="terminal-dot red" />
+            <span className="terminal-dot yellow" />
+            <span className="terminal-dot green" />
+          </div>
+          <span className="ml-4 flex-1 text-sm text-slate-400">
+            {title}
+          </span>
+          {onClose && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
+        {/* Local Setup Instructions */}
+        <div 
+          className="flex-1 bg-[#0d1117] p-6 flex flex-col items-center justify-center text-center"
+          style={{ minHeight: "400px" }}
+        >
+          <div className="max-w-md space-y-6">
+            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <Terminal className="w-8 h-8 text-emerald-500" />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold text-white">Interactive Terminal Labs</h3>
+              <p className="text-slate-400 text-sm">
+                Terminal labs require running the app locally for real shell access. 
+                Follow these steps to get hands-on practice:
+              </p>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-lg p-4 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">1</span>
+                <div>
+                  <p className="text-sm text-white font-medium">Clone the repository</p>
+                  <code className="text-xs text-slate-400 font-mono">git clone https://github.com/CyberDexa/devops-academy.git</code>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">2</span>
+                <div>
+                  <p className="text-sm text-white font-medium">Install dependencies</p>
+                  <code className="text-xs text-slate-400 font-mono">cd devops-academy && npm install</code>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">3</span>
+                <div>
+                  <p className="text-sm text-white font-medium">Run with terminal server</p>
+                  <code className="text-xs text-slate-400 font-mono">npm run dev:terminal</code>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-center">
+              <a 
+                href="https://github.com/CyberDexa/devops-academy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View on GitHub
+              </a>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              💡 Tip: You can still read through the lesson content and theory above!
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

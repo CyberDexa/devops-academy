@@ -1,0 +1,15 @@
+# Render.com Blueprint for DevOps Academy Terminal Server
+# Deploy this as a separate service for WebSocket terminal support
+
+services:
+  - type: web
+    name: devops-academy-terminal
+    runtime: docker
+    dockerfilePath: ./Dockerfile.terminal
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false # Set this to your Vercel URL after deploying
+    healthCheckPath: /health
+    autoDeploy: true

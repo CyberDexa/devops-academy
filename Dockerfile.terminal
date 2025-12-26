@@ -1,0 +1,45 @@
+# DevOps Academy Terminal Server
+# Lightweight container for WebSocket terminal support on Render.com
+
+FROM node:20-slim
+
+# Install build dependencies for node-pty
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    git \
+    curl \
+    wget \
+    vim \
+    nano \
+    htop \
+    tree \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only what's needed for the terminal server
+COPY package.json ./
+COPY terminal-server.js ./
+
+# Install only socket.io and node-pty
+RUN npm install socket.io node-pty
+
+# Create a non-root user for security
+RUN useradd -m -s /bin/bash labuser && \
+    chown -R labuser:labuser /app
+
+# Switch to non-root user
+USER labuser
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+# Start the terminal server
+CMD ["node", "terminal-server.js"]
