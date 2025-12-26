@@ -21,10 +21,29 @@ const ALLOWED_ORIGINS = [
 
 const sessions = new Map()
 
+// CORS headers helper
+const setCorsHeaders = (res, origin) => {
+  res.setHeader('Access-Control-Allow-Origin', origin || '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+}
+
 // Create HTTP server
 const server = http.createServer((req, res) => {
+  const origin = req.headers.origin
+  
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    setCorsHeaders(res, origin)
+    res.writeHead(204)
+    res.end()
+    return
+  }
+  
   // Health check endpoint
   if (req.url === '/health' || req.url === '/') {
+    setCorsHeaders(res, origin)
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ 
       status: 'ok', 
