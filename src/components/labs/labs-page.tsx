@@ -316,18 +316,33 @@ export function LabsPage() {
       {/* Internal Labs Tab */}
       {activeTab === 'internal' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Info Banner */}
+          <Card className="bg-emerald-500/10 border-emerald-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Zap className="w-5 h-5 text-emerald-400 mt-0.5" />
+                <div>
+                  <p className="text-emerald-400 font-medium">Interactive Terminal Labs</p>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Practice with real Linux terminals directly in your browser. 
+                    Follow guided exercises to master essential DevOps skills!
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {internalLabs.map((lab) => {
               const Icon = getIcon(lab.icon)
               return (
                 <Card 
                   key={lab.id}
-                  className="hover:border-emerald-500/50 transition-all cursor-pointer group"
-                  onClick={() => terminalServerStatus === 'online' && handleLaunchLab(lab)}
+                  className="hover:border-emerald-500/50 transition-all"
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                      <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-400">
                         <Icon className="w-6 h-6" />
                       </div>
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-0">
@@ -340,34 +355,69 @@ export function LabsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-1">
-                      {lab.internalConfig?.tools.slice(0, 5).map((tool) => (
+                    {/* Features */}
+                    <div className="flex flex-wrap gap-2">
+                      {lab.internalConfig?.features?.slice(0, 3).map((feature) => (
                         <Badge 
-                          key={tool} 
+                          key={feature} 
                           variant="outline" 
                           className="text-xs border-slate-700 text-slate-400"
                         >
-                          {tool}
+                          <CheckCircle className="w-3 h-3 mr-1 text-emerald-400" />
+                          {feature}
                         </Badge>
                       ))}
-                      {(lab.internalConfig?.tools.length || 0) > 5 && (
-                        <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
-                          +{(lab.internalConfig?.tools.length || 0) - 5} more
-                        </Badge>
-                      )}
                     </div>
+
+                    {/* Instructions */}
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-300 mb-2">Quick Start:</p>
+                      <ol className="text-xs text-slate-400 space-y-1">
+                        {lab.internalConfig?.instructions?.slice(0, 3).map((step, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-emerald-400 font-medium">{i + 1}.</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Tools */}
+                    <div>
+                      <p className="text-xs font-medium text-slate-300 mb-2">Available Tools:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {lab.internalConfig?.tools.slice(0, 6).map((tool) => (
+                          <Badge 
+                            key={tool} 
+                            variant="outline" 
+                            className="text-xs border-slate-700 text-slate-400"
+                          >
+                            {tool}
+                          </Badge>
+                        ))}
+                        {(lab.internalConfig?.tools.length || 0) > 6 && (
+                          <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
+                            +{(lab.internalConfig?.tools.length || 0) - 6} more
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
                     {labExerciseCounts[lab.id] > 0 && (
                       <div className="flex items-center gap-2 text-sm text-slate-400">
                         <BookOpen className="w-4 h-4" />
                         {labExerciseCounts[lab.id]} guided exercises
                       </div>
                     )}
+
                     <Button 
                       className="w-full bg-emerald-600 hover:bg-emerald-700"
                       disabled={terminalServerStatus !== 'online'}
+                      onClick={() => terminalServerStatus === 'online' && handleLaunchLab(lab)}
                     >
                       <Play className="w-4 h-4 mr-2" />
                       {terminalServerStatus === 'online' ? 'Launch Lab' : 'Server Offline'}
+                      <ChevronRight className="w-4 h-4 ml-auto" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -391,6 +441,70 @@ export function LabsPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Internal Labs Comparison Table */}
+          <Card className="border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Lab Comparison</CardTitle>
+              <CardDescription>Choose the right lab for your learning goals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Lab</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Best For</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Key Skills</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Exercises</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-300">
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Linux Fundamentals</td>
+                      <td className="py-3 px-4">Beginners, CLI basics</td>
+                      <td className="py-3 px-4">File ops, navigation, permissions</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+                          {labExerciseCounts['linux'] || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Git & Version Control</td>
+                      <td className="py-3 px-4">Developers, collaboration</td>
+                      <td className="py-3 px-4">Branching, merging, workflows</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+                          {labExerciseCounts['git'] || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Terraform & IaC</td>
+                      <td className="py-3 px-4">Infrastructure engineers</td>
+                      <td className="py-3 px-4">HCL, modules, state</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+                          {labExerciseCounts['terraform'] || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-medium">Shell Scripting</td>
+                      <td className="py-3 px-4">Automation, DevOps</td>
+                      <td className="py-3 px-4">Bash, awk, sed, automation</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+                          {labExerciseCounts['scripting'] || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

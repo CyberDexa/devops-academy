@@ -8,6 +8,8 @@ export interface LabEnvironment {
   internalConfig?: {
     defaultDirectory: string;
     tools: string[];
+    features: string[];
+    instructions: string[];
   };
   // For external labs (free platforms)
   externalConfig?: {
@@ -28,7 +30,20 @@ export const labEnvironments: LabEnvironment[] = [
     type: 'internal',
     internalConfig: {
       defaultDirectory: '/home/devops',
-      tools: ['bash', 'vim', 'nano', 'git', 'curl', 'wget', 'jq', 'tree', 'htop']
+      tools: ['bash', 'vim', 'nano', 'git', 'curl', 'wget', 'jq', 'tree', 'htop'],
+      features: [
+        'Real Linux terminal',
+        'Persistent session',
+        'File system access',
+        'Common CLI tools',
+        'Guided exercises'
+      ],
+      instructions: [
+        'Click "Launch Lab" to open the terminal',
+        'Follow guided exercises on the left panel',
+        'Practice commands like ls, cd, mkdir, cat, grep',
+        'Your work is saved during the session'
+      ]
     }
   },
   {
@@ -39,7 +54,20 @@ export const labEnvironments: LabEnvironment[] = [
     type: 'internal',
     internalConfig: {
       defaultDirectory: '/home/devops/projects',
-      tools: ['git', 'vim', 'nano', 'diff', 'patch']
+      tools: ['git', 'vim', 'nano', 'diff', 'patch'],
+      features: [
+        'Full Git installation',
+        'Practice branching',
+        'Merge conflicts',
+        'Real repositories',
+        'Guided workflows'
+      ],
+      instructions: [
+        'Click "Launch Lab" to start',
+        'Initialize repos with git init',
+        'Practice add, commit, branch, merge',
+        'Follow exercises for common workflows'
+      ]
     }
   },
   {
@@ -50,7 +78,20 @@ export const labEnvironments: LabEnvironment[] = [
     type: 'internal',
     internalConfig: {
       defaultDirectory: '/home/devops/terraform',
-      tools: ['terraform', 'vim', 'nano', 'jq', 'curl']
+      tools: ['terraform', 'vim', 'nano', 'jq', 'curl'],
+      features: [
+        'Terraform installed',
+        'HCL syntax practice',
+        'Plan & validate',
+        'State management',
+        'Module basics'
+      ],
+      instructions: [
+        'Click "Launch Lab" to start',
+        'Write .tf files with vim or nano',
+        'Run terraform init, plan, validate',
+        'Practice with local providers'
+      ]
     }
   },
   {
@@ -61,7 +102,20 @@ export const labEnvironments: LabEnvironment[] = [
     type: 'internal',
     internalConfig: {
       defaultDirectory: '/home/devops/scripts',
-      tools: ['bash', 'shellcheck', 'vim', 'nano', 'awk', 'sed', 'grep']
+      tools: ['bash', 'shellcheck', 'vim', 'nano', 'awk', 'sed', 'grep'],
+      features: [
+        'Full Bash shell',
+        'Script debugging',
+        'Text processing',
+        'Automation practice',
+        'ShellCheck linting'
+      ],
+      instructions: [
+        'Click "Launch Lab" to start',
+        'Create scripts with vim or nano',
+        'Make executable with chmod +x',
+        'Debug with bash -x script.sh'
+      ]
     }
   },
   
