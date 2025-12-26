@@ -100,7 +100,7 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <div className="p-6 lg:p-8 flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
           <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto" />
           <p className="text-slate-400">Loading module...</p>
@@ -111,7 +111,7 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
 
   if (error || !module) {
     return (
-      <div className="p-6">
+      <div className="p-6 lg:p-8">
         <Card className="border-red-500/50 bg-red-500/10">
           <CardContent className="p-6 text-center">
             <p className="text-red-400">Failed to load module: {error}</p>
@@ -136,7 +136,7 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
   const nextModule = currentIdx < module.allModules.length - 1 ? module.allModules[currentIdx + 1] : null
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 lg:p-8 space-y-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/tracks" className="text-slate-400 hover:text-white transition-colors">
@@ -151,7 +151,7 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
       </div>
 
       {/* Module Header */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border-0 bg-slate-900/50 shadow-lg">
         <div className={`h-2 bg-gradient-to-r ${color}`} />
         <CardHeader>
           <div className="flex items-start justify-between">
@@ -192,14 +192,14 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
       </Card>
 
       {/* Lessons List */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-white">Lessons</h2>
-        <div className="space-y-2">
+      <div className="space-y-5">
+        <h2 className="text-2xl font-bold text-white">Lessons</h2>
+        <div className="space-y-3">
           {module.lessons.map((lesson, idx) => (
             <Link 
               key={lesson.id}
               href={`/lesson/${lesson.slug}`}
-              className="flex items-center justify-between p-4 rounded-xl bg-slate-900/50 hover:bg-slate-800/50 border border-slate-800 hover:border-slate-700 transition-all group"
+              className="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 transition-all group"
             >
               <div className="flex items-center gap-4">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${color} text-white font-medium`}>
@@ -235,7 +235,7 @@ export function ModuleDetailPage({ trackId, moduleId }: { trackId: string; modul
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-between pt-6">
         {prevModule ? (
           <Link href={`/tracks/${trackId}/${prevModule.slug}`}>
             <Button variant="outline" className="gap-2">

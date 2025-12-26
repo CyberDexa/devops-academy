@@ -18,6 +18,7 @@ import {
   Rocket
 } from "lucide-react"
 import { Sidebar } from "@/components/layout/sidebar"
+import { useLayout } from "@/contexts/layout-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -91,6 +92,7 @@ const typeColors: Record<string, string> = {
 export default function LessonPage() {
   const params = useParams()
   const lessonId = params.id as string
+  const { sidebarCollapsed } = useLayout()
   
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
@@ -144,7 +146,7 @@ export default function LessonPage() {
     return (
       <div className="flex min-h-screen">
         <Sidebar streak={5} xp={1250} />
-        <main className="ml-64 flex-1 flex items-center justify-center">
+        <main className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
           <div className="text-center space-y-4">
             <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto" />
             <p className="text-slate-400">Loading lesson...</p>
@@ -158,7 +160,7 @@ export default function LessonPage() {
     return (
       <div className="flex min-h-screen">
         <Sidebar streak={5} xp={1250} />
-        <main className="ml-64 flex-1 flex items-center justify-center">
+        <main className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
           <Card className="border-red-500/50 bg-red-500/10 max-w-md">
             <CardContent className="p-6 text-center">
               <p className="text-red-400">Failed to load lesson: {error}</p>
@@ -187,7 +189,7 @@ export default function LessonPage() {
     <div className="flex min-h-screen">
       <Sidebar streak={5} xp={1250} />
       
-      <main className="ml-64 flex-1 flex flex-col">
+      <main className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Lesson Header */}
         <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
           <div className="flex items-center justify-between px-6 py-4">

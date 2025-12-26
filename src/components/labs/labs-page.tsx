@@ -200,7 +200,7 @@ export function LabsPage() {
 
         {/* Quick Start Panel */}
         {!showExercises && activeLabData.internalConfig && (
-          <Card className="border-slate-700">
+          <Card className="border-0 bg-slate-800/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Quick Start</CardTitle>
               <CardDescription>
@@ -254,9 +254,9 @@ export function LabsPage() {
 
   // Lab selection view
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 lg:p-8 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Practice Labs</h1>
           <p className="text-slate-400 mt-1">
@@ -267,9 +267,9 @@ export function LabsPage() {
       </div>
 
       {/* Server Status */}
-      <Card className="border-slate-700">
+      <Card className="border-0 bg-slate-800/50">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`w-3 h-3 rounded-full ${
                 terminalServerStatus === 'online' ? 'bg-emerald-500' : 
@@ -294,7 +294,7 @@ export function LabsPage() {
       </Card>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={activeTab === 'internal' ? 'default' : 'outline'}
           onClick={() => setActiveTab('internal')}
@@ -315,9 +315,9 @@ export function LabsPage() {
 
       {/* Internal Labs Tab */}
       {activeTab === 'internal' && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Info Banner */}
-          <Card className="bg-emerald-500/10 border-emerald-500/30">
+          <Card className="bg-emerald-500/10 border-0">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <Zap className="w-5 h-5 text-emerald-400 mt-0.5" />
@@ -443,7 +443,7 @@ export function LabsPage() {
           )}
 
           {/* Internal Labs Comparison Table */}
-          <Card className="border-slate-700">
+          <Card className="border-0 bg-slate-800/30">
             <CardHeader>
               <CardTitle className="text-white">Lab Comparison</CardTitle>
               <CardDescription>Choose the right lab for your learning goals</CardDescription>
@@ -452,7 +452,7 @@ export function LabsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-700">
+                    <tr className="border-b border-slate-700/50">
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Lab</th>
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Best For</th>
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Key Skills</th>

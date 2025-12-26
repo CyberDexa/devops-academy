@@ -128,11 +128,11 @@ export function TracksPage() {
   const { tracks, stats } = data
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 lg:p-8 space-y-10">
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 lg:gap-6">
+        <Card className="border-0 bg-slate-800/50 shadow-lg">
+          <CardContent className="p-4 lg:p-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
               <BookOpen className="h-5 w-5 text-emerald-500" />
             </div>
@@ -142,8 +142,8 @@ export function TracksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-0 bg-slate-800/50 shadow-lg">
+          <CardContent className="p-4 lg:p-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/10">
               <Terminal className="h-5 w-5 text-cyan-500" />
             </div>
@@ -153,8 +153,8 @@ export function TracksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-0 bg-slate-800/50 shadow-lg">
+          <CardContent className="p-4 lg:p-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
               <BarChart className="h-5 w-5 text-purple-500" />
             </div>
@@ -164,8 +164,8 @@ export function TracksPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-0 bg-slate-800/50 shadow-lg">
+          <CardContent className="p-4 lg:p-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
               <Clock className="h-5 w-5 text-orange-500" />
             </div>
@@ -187,7 +187,7 @@ export function TracksPage() {
       </div>
 
       {/* All Tracks */}
-      <div className="space-y-6">
+      <div className="space-y-8">
         {tracks.map((track, trackIdx) => {
           const Icon = phaseIcons[track.slug] || Terminal
           const color = track.color || phaseColors[track.slug] || "from-slate-500 to-slate-600"
@@ -196,8 +196,8 @@ export function TracksPage() {
             acc + mod.lessons.filter(l => l.type === 'project' || l.type === 'lab').length, 0)
           
           return (
-            <Card key={track.id} className="overflow-hidden">
-              <div className={`h-1 bg-gradient-to-r ${color}`} />
+            <Card key={track.id} className="overflow-hidden border-0 bg-slate-900/50 shadow-xl">
+              <div className={`h-1.5 bg-gradient-to-r ${color}`} />
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
@@ -250,8 +250,8 @@ export function TracksPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <h4 className="text-sm font-semibold text-slate-400 mb-3">MODULES ({track.modules.length})</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <h4 className="text-sm font-semibold text-slate-400 mb-4">MODULES ({track.modules.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {track.modules.map((module, idx) => {
                     return (
                       <Link 
@@ -259,7 +259,7 @@ export function TracksPage() {
                         href={`/tracks/${track.slug}/${module.slug}`}
                         className="group"
                       >
-                        <div className="p-4 rounded-lg border border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-800/50 transition-all h-full">
+                        <div className="p-4 rounded-xl border-0 bg-slate-800/50 hover:bg-slate-700/50 transition-all h-full shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs text-slate-500">Module {idx + 1}</span>
                             <span className="text-xs text-slate-400">{module.lessons.length} lessons</span>
