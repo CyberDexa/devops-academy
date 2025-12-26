@@ -146,9 +146,18 @@ export function RealTerminal({
 
         socket.on('connect', () => {
           console.log('Socket connected, starting terminal with mode:', config.mode)
+          
+          // Get or create visitor ID for user isolation
+          let visitorId = localStorage.getItem('devops-visitor-id')
+          if (!visitorId) {
+            visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+            localStorage.setItem('devops-visitor-id', visitorId)
+          }
+          
           // Send connection mode and config to server
           socket.emit('terminal:start', { 
             lessonId,
+            userId: visitorId,
             mode: config.mode,
             ssh: config.mode === 'ssh' ? config.ssh : undefined,
             docker: config.mode === 'docker' ? config.docker : undefined

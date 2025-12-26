@@ -9,8 +9,21 @@ import {
   Database,
   Server,
   Play,
-  Clock,
-  BookOpen
+  BookOpen,
+  ExternalLink,
+  CheckCircle,
+  Info,
+  Zap,
+  Code,
+  GraduationCap,
+  FileCode,
+  ChevronRight,
+  Sparkles,
+  Brain,
+  Network,
+  Blocks,
+  ArrowLeft,
+  AlertCircle
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,167 +32,42 @@ import { RealTerminal } from "@/components/terminal/real-terminal"
 import { TerminalSettings } from "@/components/terminal/terminal-settings"
 import { GuidedExercise } from "@/components/labs/guided-exercise"
 import { getExercisesForLab } from "@/data/lab-exercises"
+import { 
+  labEnvironments, 
+  getInternalLabs, 
+  getExternalLabs, 
+  type LabEnvironment 
+} from "@/data/lab-environments"
 
-const labEnvironments = [
-  {
-    id: "linux",
-    name: "Linux Fundamentals",
-    description: "Practice shell commands, file operations, and system administration",
-    icon: TerminalIcon,
-    difficulty: "beginner",
-    duration: "30-60 min",
-    tools: ["Bash", "Vim", "SSH"],
-    color: "from-orange-500 to-red-500",
-    quickStart: {
-      goals: [
-        "Navigate the filesystem and manage files",
-        "Inspect processes and system resources",
-        "Practice safe command-line workflows",
-      ],
-      commands: [
-        "pwd",
-        "ls -la",
-        "mkdir -p lab && cd lab",
-        "echo 'hello' > hello.txt && cat hello.txt",
-        "ps aux | head",
-        "df -h",
-      ],
-    },
-  },
-  {
-    id: "docker",
-    name: "Docker Lab",
-    description: "Build, run, and manage containerized applications",
-    icon: Container,
-    difficulty: "intermediate",
-    duration: "45-90 min",
-    tools: ["Docker", "Docker Compose", "Container Registry"],
-    color: "from-blue-500 to-cyan-500",
-    quickStart: {
-      goals: [
-        "Run containers and inspect their state",
-        "Build an image from a Dockerfile",
-        "Use volumes and port mappings",
-      ],
-      commands: [
-        "docker version",
-        "docker ps -a",
-        "docker run --rm hello-world",
-        "docker run --rm -p 8080:80 nginx",
-      ],
-    },
-  },
-  {
-    id: "kubernetes",
-    name: "Kubernetes Cluster",
-    description: "Deploy and orchestrate containers at scale",
-    icon: Cloud,
-    difficulty: "advanced",
-    duration: "60-120 min",
-    tools: ["kubectl", "Helm", "Minikube"],
-    color: "from-blue-600 to-indigo-600",
-    quickStart: {
-      goals: [
-        "Explore cluster resources",
-        "Deploy a workload and expose it",
-        "Inspect logs and rollouts",
-      ],
-      commands: [
-        "kubectl version --client",
-        "kubectl get ns",
-        "kubectl get nodes",
-        "kubectl create deployment web --image=nginx",
-        "kubectl get deploy,po",
-      ],
-    },
-  },
-  {
-    id: "git",
-    name: "Git & CI/CD",
-    description: "Version control and continuous integration pipelines",
-    icon: GitBranch,
-    difficulty: "beginner",
-    duration: "30-45 min",
-    tools: ["Git", "GitHub Actions", "GitLab CI"],
-    color: "from-purple-500 to-pink-500",
-    quickStart: {
-      goals: [
-        "Practice core git workflows",
-        "Understand branching and merge conflicts",
-        "Write a minimal CI pipeline mindset",
-      ],
-      commands: [
-        "git --version",
-        "mkdir repo && cd repo && git init",
-        "echo 'demo' > README.md && git add . && git commit -m 'init'",
-        "git checkout -b feature/demo",
-      ],
-    },
-  },
-  {
-    id: "terraform",
-    name: "Infrastructure as Code",
-    description: "Provision cloud infrastructure with Terraform",
-    icon: Server,
-    difficulty: "intermediate",
-    duration: "60-90 min",
-    tools: ["Terraform", "AWS CLI", "Azure CLI"],
-    color: "from-purple-600 to-violet-600",
-    quickStart: {
-      goals: [
-        "Initialize a Terraform workspace",
-        "Validate and format configuration",
-        "Plan changes safely",
-      ],
-      commands: [
-        "terraform -v",
-        "mkdir tf && cd tf",
-        "cat > main.tf <<'EOF'\nterraform { required_version = \">= 1.6.0\" }\n\noutput \"hello\" { value = \"world\" }\nEOF",
-        "terraform fmt",
-        "terraform init",
-        "terraform validate",
-        "terraform plan",
-      ],
-    },
-  },
-  {
-    id: "mlops",
-    name: "MLOps Pipeline",
-    description: "Deploy and monitor ML models in production",
-    icon: Database,
-    difficulty: "advanced",
-    duration: "90-120 min",
-    tools: ["MLflow", "Docker", "Python"],
-    color: "from-emerald-500 to-teal-500",
-    quickStart: {
-      goals: [
-        "Create a minimal training script",
-        "Package it into a container",
-        "Think in terms of metrics, artifacts, and deployment",
-      ],
-      commands: [
-        "python3 --version",
-        "python3 -c \"print('hello mlops')\"",
-        "docker ps -a",
-      ],
-    },
-  }
-]
-
-type DockerStatus =
-  | { state: "loading" }
-  | { state: "available"; containersCount: number }
-  | { state: "unavailable"; error?: string }
+// Icon mapping
+const iconMap: Record<string, React.ElementType> = {
+  Terminal: TerminalIcon,
+  Container,
+  Network,
+  GitBranch,
+  Blocks,
+  Brain,
+  Code,
+  GraduationCap,
+  FileCode,
+  Server,
+  Cloud,
+  Database
+}
 
 export function LabsPage() {
-  const [activeTerminal, setActiveTerminal] = useState<string | null>(null)
-  const [dockerStatus, setDockerStatus] = useState<DockerStatus>({ state: "loading" })
+  const [activeLab, setActiveLab] = useState<string | null>(null)
   const [showExercises, setShowExercises] = useState(true)
   const [lastCommand, setLastCommand] = useState<string>("")
+  const [terminalServerStatus, setTerminalServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  const [activeTab, setActiveTab] = useState<'internal' | 'external'>('internal')
 
-  const activeLab = useMemo(
-    () => labEnvironments.find((l) => l.id === activeTerminal),
-    [activeTerminal]
+  const internalLabs = getInternalLabs()
+  const externalLabs = getExternalLabs()
+
+  const activeLabData = useMemo(
+    () => labEnvironments.find((l) => l.id === activeLab),
+    [activeLab]
   )
 
   // Get exercise count for each lab
@@ -196,238 +84,474 @@ export function LabsPage() {
     setLastCommand(command)
   }, [])
 
+  // Check terminal server status
   useEffect(() => {
-    let cancelled = false
-
-    const loadDockerStatus = async () => {
+    const checkServer = async () => {
       try {
-        setDockerStatus({ state: "loading" })
-        const response = await fetch("/api/terminal/docker-status", { cache: "no-store" })
-        const data = await response.json()
-
-        if (cancelled) return
-
-        if (data?.available) {
-          const containersCount = Array.isArray(data.containers) ? data.containers.length : 0
-          setDockerStatus({ state: "available", containersCount })
-          return
+        const serverUrl = process.env.NEXT_PUBLIC_TERMINAL_SERVER_URL || ''
+        if (!serverUrl) {
+          // No external server configured, check local
+          const response = await fetch('/api/terminal/docker-status', { 
+            cache: 'no-store',
+            signal: AbortSignal.timeout(5000)
+          })
+          if (response.ok) {
+            setTerminalServerStatus('online')
+          } else {
+            setTerminalServerStatus('offline')
+          }
+        } else {
+          const response = await fetch(`${serverUrl}/health`, { 
+            mode: 'cors',
+            signal: AbortSignal.timeout(5000)
+          })
+          if (response.ok) {
+            setTerminalServerStatus('online')
+          } else {
+            setTerminalServerStatus('offline')
+          }
         }
-
-        setDockerStatus({ state: "unavailable", error: data?.error })
-      } catch (error) {
-        if (cancelled) return
-        setDockerStatus({
-          state: "unavailable",
-          error: error instanceof Error ? error.message : "Unable to check Docker status",
-        })
+      } catch {
+        setTerminalServerStatus('offline')
       }
     }
-
-    loadDockerStatus()
-    const intervalId = window.setInterval(loadDockerStatus, 10_000)
-
-    return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
-    }
+    
+    checkServer()
+    const interval = setInterval(checkServer, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header with Terminal Settings */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Practice Labs</h1>
-          <p className="text-slate-400 mt-1">Hands-on environments to practice DevOps skills</p>
-        </div>
-        <TerminalSettings />
-      </div>
+  const getIcon = (iconName: string) => {
+    return iconMap[iconName] || TerminalIcon
+  }
 
-      {/* Environment Status */}
-      <Card className="border-slate-700">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="font-semibold text-white">Environment Status</h3>
-              <p className="text-sm text-slate-400 mt-1">
-                Docker is required for container-based labs. The real terminal backend runs via <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400">npm run dev:terminal</code>.
-              </p>
+  const handleLaunchLab = (lab: LabEnvironment) => {
+    if (lab.type === 'external' && lab.externalConfig) {
+      window.open(lab.externalConfig.url, '_blank', 'noopener,noreferrer')
+    } else {
+      setActiveLab(lab.id)
+      setShowExercises(true)
+    }
+  }
+
+  const handleCloseLab = () => {
+    setActiveLab(null)
+    setShowExercises(true)
+  }
+
+  // Active internal lab view
+  if (activeLab && activeLabData?.type === 'internal') {
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={handleCloseLab}
+              className="text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Labs
+            </Button>
+            <div className="flex items-center gap-3">
+              {(() => {
+                const Icon = getIcon(activeLabData.icon)
+                return <Icon className="w-6 h-6 text-emerald-400" />
+              })()}
+              <div>
+                <h1 className="text-xl font-bold text-white">{activeLabData.name}</h1>
+                <p className="text-sm text-slate-400">{activeLabData.description}</p>
+              </div>
             </div>
-            {dockerStatus.state === "loading" ? (
-              <Badge variant="outline">Checking Docker…</Badge>
-            ) : dockerStatus.state === "available" ? (
-              <Badge variant="success">Docker running ({dockerStatus.containersCount} containers)</Badge>
-            ) : (
-              <Badge variant="destructive">Docker unavailable</Badge>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-emerald-500 text-emerald-400">
+              <Zap className="w-3 h-3 mr-1" />
+              Isolated Workspace
+            </Badge>
+            <TerminalSettings compact />
+          </div>
+        </div>
+
+        {/* Tab toggle */}
+        <div className="flex gap-2">
+          <Button 
+            variant={!showExercises ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowExercises(false)}
+          >
+            Quick Start
+          </Button>
+          <Button 
+            variant={showExercises ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowExercises(true)}
+          >
+            <BookOpen className="h-4 w-4 mr-1" />
+            Guided Exercises
+            {labExerciseCounts[activeLab] > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {labExerciseCounts[activeLab]}
+              </Badge>
             )}
-          </div>
-          {dockerStatus.state === "unavailable" && (
-            <div className="mt-4 text-sm text-slate-400 space-y-1">
-              <p>
-                Start Docker Desktop (or install Docker) and retry.
-                {dockerStatus.error ? <span className="text-slate-500"> ({dockerStatus.error})</span> : null}
-              </p>
-              <p className="text-slate-500">
-                Tip: if you’re running the lab in Docker, make sure the Docker daemon is available to this host.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Active Terminal */}
-      {activeTerminal && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">
-              Active Lab: {activeLab?.name}
-            </h2>
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveTerminal(null)}
-            >
-              Close Lab
-            </Button>
-          </div>
-
-          {/* Tab toggle for Quick Start vs Exercises */}
-          <div className="flex gap-2">
-            <Button 
-              variant={!showExercises ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowExercises(false)}
-            >
-              Quick Start
-            </Button>
-            <Button 
-              variant={showExercises ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowExercises(true)}
-            >
-              <BookOpen className="h-4 w-4 mr-1" />
-              Guided Exercises
-              {labExerciseCounts[activeTerminal] > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {labExerciseCounts[activeTerminal]}
-                </Badge>
-              )}
-            </Button>
-          </div>
-
-          {/* Quick Start Panel */}
-          {!showExercises && activeLab?.quickStart && (
-            <Card className="border-slate-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Quick start</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Goals + commands to get moving fast.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-semibold text-white">Goals</div>
-                  <ul className="mt-2 space-y-1 text-sm text-slate-400">
-                    {activeLab.quickStart.goals.map((goal) => (
-                      <li key={goal}>• {goal}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-white">Suggested commands</div>
-                  <div className="mt-2 grid grid-cols-1 gap-2">
-                    {activeLab.quickStart.commands.map((command) => (
-                      <code key={command} className="px-2 py-1 rounded bg-slate-800 text-slate-200 text-xs overflow-x-auto">
-                        {command}
-                      </code>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Guided Exercises Panel */}
-          {showExercises && (
-            <GuidedExercise 
-              labId={activeTerminal} 
-              lastCommand={lastCommand}
-            />
-          )}
-
-          <RealTerminal onCommand={handleTerminalCommand} />
+          </Button>
         </div>
-      )}
 
-      {/* Lab Environments */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Available Lab Environments</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {labEnvironments.map((lab) => (
-            <Card key={lab.id} className="hover:border-slate-600 transition-all hover:shadow-lg">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${lab.color}`}>
-                    <lab.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{lab.name}</CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge 
-                        variant={
-                          lab.difficulty === "beginner" ? "success" :
-                          lab.difficulty === "intermediate" ? "warning" : "destructive"
-                        }
-                      >
-                        {lab.difficulty}
-                      </Badge>
-                      {labExerciseCounts[lab.id] > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {labExerciseCounts[lab.id]} exercises
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <CardDescription className="text-slate-400">
-                  {lab.description}
-                </CardDescription>
-                
-                <div className="flex items-center gap-1 text-sm text-slate-500">
-                  <Clock className="h-4 w-4" />
-                  {lab.duration}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {lab.tools.map((tool) => (
-                    <Badge key={tool} variant="outline" className="text-xs">
+        {/* Quick Start Panel */}
+        {!showExercises && activeLabData.internalConfig && (
+          <Card className="border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Quick Start</CardTitle>
+              <CardDescription>
+                Available tools and getting started
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="text-sm font-semibold text-white mb-2">Available Tools</div>
+                <div className="flex flex-wrap gap-2">
+                  {activeLabData.internalConfig.tools.map((tool) => (
+                    <Badge key={tool} variant="outline">
                       {tool}
                     </Badge>
                   ))}
                 </div>
+              </div>
+              <div className="bg-slate-800/50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div className="text-sm text-slate-300">
+                    <p className="font-medium text-white mb-1">Your Isolated Workspace</p>
+                    <ul className="list-disc list-inside space-y-1 text-slate-400">
+                      <li>Files are saved in your personal directory for 24 hours</li>
+                      <li>Other users cannot see your work</li>
+                      <li>Type <code className="px-1 py-0.5 bg-slate-700 rounded text-cyan-400">cat README.md</code> for help</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                <Button 
-                  className="w-full gap-2"
-                  onClick={() => setActiveTerminal(lab.id)}
+        {/* Guided Exercises Panel */}
+        {showExercises && (
+          <GuidedExercise 
+            labId={activeLab} 
+            lastCommand={lastCommand}
+          />
+        )}
+
+        {/* Terminal */}
+        <RealTerminal 
+          lessonId={activeLab}
+          onCommand={handleTerminalCommand} 
+        />
+      </div>
+    )
+  }
+
+  // Lab selection view
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Practice Labs</h1>
+          <p className="text-slate-400 mt-1">
+            Hands-on environments to practice DevOps skills
+          </p>
+        </div>
+        <TerminalSettings />
+      </div>
+
+      {/* Server Status */}
+      <Card className="border-slate-700">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${
+                terminalServerStatus === 'online' ? 'bg-emerald-500' : 
+                terminalServerStatus === 'offline' ? 'bg-yellow-500' : 
+                'bg-slate-500'
+              } animate-pulse`} />
+              <span className="text-slate-300">
+                {terminalServerStatus === 'online' 
+                  ? 'Terminal server online - Internal labs ready!' 
+                  : terminalServerStatus === 'offline' 
+                    ? 'Terminal server offline - Use external labs below'
+                    : 'Checking server status...'}
+              </span>
+            </div>
+            {terminalServerStatus === 'offline' && (
+              <Badge variant="outline" className="border-yellow-500 text-yellow-400">
+                External labs always available
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === 'internal' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('internal')}
+          className={activeTab === 'internal' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+        >
+          <TerminalIcon className="w-4 h-4 mr-2" />
+          Internal Labs ({internalLabs.length})
+        </Button>
+        <Button
+          variant={activeTab === 'external' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('external')}
+          className={activeTab === 'external' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          External Labs ({externalLabs.length})
+        </Button>
+      </div>
+
+      {/* Internal Labs Tab */}
+      {activeTab === 'internal' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {internalLabs.map((lab) => {
+              const Icon = getIcon(lab.icon)
+              return (
+                <Card 
+                  key={lab.id}
+                  className="hover:border-emerald-500/50 transition-all cursor-pointer group"
+                  onClick={() => terminalServerStatus === 'online' && handleLaunchLab(lab)}
                 >
-                  <Play className="h-4 w-4" />
-                  Launch Lab
-                </Button>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-0">
+                        Internal
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-white mt-4">{lab.name}</CardTitle>
+                    <CardDescription className="text-slate-400">
+                      {lab.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-1">
+                      {lab.internalConfig?.tools.slice(0, 5).map((tool) => (
+                        <Badge 
+                          key={tool} 
+                          variant="outline" 
+                          className="text-xs border-slate-700 text-slate-400"
+                        >
+                          {tool}
+                        </Badge>
+                      ))}
+                      {(lab.internalConfig?.tools.length || 0) > 5 && (
+                        <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
+                          +{(lab.internalConfig?.tools.length || 0) - 5} more
+                        </Badge>
+                      )}
+                    </div>
+                    {labExerciseCounts[lab.id] > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <BookOpen className="w-4 h-4" />
+                        {labExerciseCounts[lab.id]} guided exercises
+                      </div>
+                    )}
+                    <Button 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      disabled={terminalServerStatus !== 'online'}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      {terminalServerStatus === 'online' ? 'Launch Lab' : 'Server Offline'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+          
+          {terminalServerStatus === 'offline' && (
+            <Card className="bg-yellow-500/10 border-yellow-500/30">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-400 font-medium">Terminal Server Offline</p>
+                    <p className="text-slate-400 text-sm mt-1">
+                      Internal labs require the terminal server. Check the &quot;External Labs&quot; tab for 
+                      free alternatives like Play with Docker and Killercoda.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
-      </div>
+      )}
+
+      {/* External Labs Tab */}
+      {activeTab === 'external' && (
+        <div className="space-y-6">
+          {/* Info Banner */}
+          <Card className="bg-blue-500/10 border-blue-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-blue-400 mt-0.5" />
+                <div>
+                  <p className="text-blue-400 font-medium">Free External Platforms</p>
+                  <p className="text-slate-400 text-sm mt-1">
+                    These platforms provide free Docker and Kubernetes environments with more resources. 
+                    Perfect for container and orchestration practice!
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* External Lab Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {externalLabs.map((lab) => {
+              const Icon = getIcon(lab.icon)
+              return (
+                <Card 
+                  key={lab.id}
+                  className="hover:border-blue-500/50 transition-all"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400">
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <Badge className="bg-blue-500/20 text-blue-400 border-0">
+                        {lab.externalConfig?.platform}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-white mt-4">{lab.name}</CardTitle>
+                    <CardDescription className="text-slate-400">
+                      {lab.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Features */}
+                    <div className="flex flex-wrap gap-2">
+                      {lab.externalConfig?.features.slice(0, 3).map((feature) => (
+                        <Badge 
+                          key={feature} 
+                          variant="outline" 
+                          className="text-xs border-slate-700 text-slate-400"
+                        >
+                          <CheckCircle className="w-3 h-3 mr-1 text-emerald-400" />
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-300 mb-2">Quick Start:</p>
+                      <ol className="text-xs text-slate-400 space-y-1">
+                        {lab.externalConfig?.instructions.slice(0, 3).map((step, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-blue-400 font-medium">{i + 1}.</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <Button 
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleLaunchLab(lab)}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open {lab.externalConfig?.platform}
+                      <ChevronRight className="w-4 h-4 ml-auto" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Comparison Table */}
+          <Card className="border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Platform Comparison</CardTitle>
+              <CardDescription>Choose the right platform for your needs</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Platform</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Best For</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Session Time</th>
+                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Account Needed</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-300">
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Play with Docker</td>
+                      <td className="py-3 px-4">Docker basics, Compose</td>
+                      <td className="py-3 px-4">4 hours</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">No</Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Play with K8s</td>
+                      <td className="py-3 px-4">Kubernetes clusters</td>
+                      <td className="py-3 px-4">4 hours</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-400">Docker Hub</Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Killercoda</td>
+                      <td className="py-3 px-4">K8s scenarios, CKA prep</td>
+                      <td className="py-3 px-4">60 minutes</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-400">Optional</Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-800">
+                      <td className="py-3 px-4 font-medium">Gitpod</td>
+                      <td className="py-3 px-4">Extended Docker work</td>
+                      <td className="py-3 px-4">50 hrs/month</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-400">GitHub</Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-medium">Google Colab</td>
+                      <td className="py-3 px-4">MLOps, Python ML</td>
+                      <td className="py-3 px-4">12 hours</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-400">Google</Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Tips Section */}
       <Card className="border-cyan-500/30">
         <CardContent className="p-6">
           <h3 className="font-semibold text-white mb-3">💡 Lab Tips</h3>
           <ul className="space-y-2 text-sm text-slate-400">
-            <li>• Type <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400">help</code> in any terminal to see available commands</li>
-            <li>• Labs run in isolated Docker containers - feel free to experiment!</li>
-            <li>• Keep notes of key commands/output if you want to track progress</li>
+            <li>• <strong className="text-white">Internal labs</strong> give you an isolated workspace that persists for 24 hours</li>
+            <li>• <strong className="text-white">External labs</strong> provide full Docker/Kubernetes access with more resources</li>
+            <li>• No account needed for most labs - just start practicing!</li>
             <li>• Use <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-xs">Ctrl+L</kbd> to clear the terminal screen</li>
           </ul>
         </CardContent>
