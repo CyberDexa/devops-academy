@@ -118,6 +118,54 @@ export const labEnvironments: LabEnvironment[] = [
       ]
     }
   },
+  {
+    id: 'docker-basics',
+    name: 'Docker Basics',
+    description: 'Learn Docker commands, Dockerfiles, and container concepts',
+    icon: 'Container',
+    type: 'internal',
+    internalConfig: {
+      defaultDirectory: '/home/devops/docker',
+      tools: ['docker', 'vim', 'nano', 'curl', 'jq'],
+      features: [
+        'Docker CLI practice',
+        'Dockerfile writing',
+        'Image management',
+        'Container lifecycle',
+        'Guided exercises'
+      ],
+      instructions: [
+        'Click "Launch Lab" to start',
+        'Practice docker commands (images, ps, run)',
+        'Write Dockerfiles with vim or nano',
+        'For running containers, use External Labs'
+      ]
+    }
+  },
+  {
+    id: 'kubernetes-basics',
+    name: 'Kubernetes Basics',
+    description: 'Learn kubectl commands, YAML manifests, and K8s concepts',
+    icon: 'Network',
+    type: 'internal',
+    internalConfig: {
+      defaultDirectory: '/home/devops/kubernetes',
+      tools: ['kubectl', 'vim', 'nano', 'curl', 'jq', 'yq'],
+      features: [
+        'kubectl CLI practice',
+        'YAML manifest writing',
+        'Resource definitions',
+        'K8s concepts',
+        'Guided exercises'
+      ],
+      instructions: [
+        'Click "Launch Lab" to start',
+        'Practice kubectl commands and syntax',
+        'Write deployment/service YAML files',
+        'For real clusters, use External Labs'
+      ]
+    }
+  },
   
   // ========== EXTERNAL LABS (Free Platforms) ==========
   {
