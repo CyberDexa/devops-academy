@@ -244,7 +244,12 @@ export default function LessonPage() {
         {/* Main Content */}
         <div className="flex-1 flex">
           {/* Lesson Content */}
-          <div className={`flex-1 overflow-y-auto ${showTerminal ? "mr-[50%]" : "w-full"}`}>
+          <div 
+            className={`flex-1 overflow-y-auto`}
+            style={{ 
+              marginRight: showTerminal ? (sidebarCollapsed ? 'calc(45vw - 29px)' : 'calc(45vw - 115px)') : 0 
+            }}
+          >
             <div className="max-w-3xl mx-auto p-6 lg:p-8">
               {/* Lesson Info Card */}
               <Card className="mb-8 border-0 bg-slate-800/50 shadow-lg">
@@ -473,7 +478,12 @@ After completing this lesson, you'll be ready to move on to more advanced topics
 
           {/* Terminal Panel - Floating */}
           {showTerminal && (
-            <div className="fixed right-0 top-0 w-1/2 h-screen bg-slate-900 z-20">
+            <div 
+              className="fixed top-0 right-0 h-screen bg-slate-900 z-20 transition-all duration-300"
+              style={{ 
+                width: sidebarCollapsed ? 'calc(45vw - 29px)' : 'calc(45vw - 115px)'
+              }}
+            >
               <RealTerminal 
                 title="Lab Environment"
                 lessonId={lessonId}
